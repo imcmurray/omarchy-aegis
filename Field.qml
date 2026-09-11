@@ -3,8 +3,9 @@ import qs.Commons
 import qs.Ui
 import "Vault.js" as Vault
 
-// Input plus a right-side hint. Invalid uses Color.urgent. Password fields
-// can show a strength meter as the input border and the same hint slot.
+// Empty required errors sit in the placeholder (left). Hints for filled
+// fields sit to the right and hide while the input is focused. Password
+// strength still paints the border while typing.
 Item {
   id: root
 
@@ -49,7 +50,9 @@ Item {
     }
     return Color.foreground
   }
-  readonly property bool showHint: hintText !== ""
+  readonly property bool hintOnLeft: invalid && errorText !== "" && input.text.length === 0
+  readonly property bool hintOnRight: hintText !== "" && !hintOnLeft && !input.activeFocus
+  readonly property bool holdHintSlot: passwordMeter || compareTo !== "" || hintOnRight
   readonly property bool showRing: invalid || showMeter || (showCompare && !compareOk) || (showCompare && compareOk && !compareMustDiffer)
 
   implicitHeight: input.implicitHeight
@@ -64,7 +67,7 @@ Item {
 
     Item {
       id: inputWrap
-      width: parent.width - (root.showHint ? hintLabel.width + parent.spacing : 0)
+      width: parent.width - (root.holdHintSlot ? hintLabel.width + parent.spacing : 0)
       height: parent.height
 
       TextField {
@@ -74,8 +77,8 @@ Item {
         accent: root.showRing ? root.hintColor : root.accent
         password: root.password
         hasCursor: root.hasCursor
-        placeholderText: root.placeholderText
-        placeholderTextColor: Qt.darker(foreground, 1.6)
+        placeholderText: root.hintOnLeft ? root.errorText : root.placeholderText
+        placeholderTextColor: root.hintOnLeft ? root.hintColor : Qt.darker(foreground, 1.6)
         KeyNavigation.tab: root.nextField && root.nextField.input ? root.nextField.input : root.nextField
         KeyNavigation.backtab: root.prevField && root.prevField.input ? root.prevField.input : root.prevField
         Keys.priority: Keys.BeforeItem
@@ -95,7 +98,7 @@ Item {
 
     Text {
       id: hintLabel
-      visible: root.showHint
+      visible: root.hintOnRight
       anchors.verticalCenter: parent.verticalCenter
       textFormat: Text.PlainText
       text: root.hintText
@@ -103,7 +106,7 @@ Item {
       font.family: Style.font.family
       font.pixelSize: Style.font.caption
       elide: Text.ElideRight
-      width: Math.min(implicitWidth, Style.space(96))
+      width: root.holdHintSlot ? Style.space(88) : 0
     }
   }
 }
