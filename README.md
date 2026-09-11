@@ -23,7 +23,7 @@ Requires [`aegis`](https://github.com/imcmurray/Aegis) on `PATH` (`aegis --proto
 Pin the CLI to the commit that added `aegis` (detached HEAD), then install from that tree. The checkout and build are one `&&` chain so a failed pin cannot fall through to `cargo install`:
 
 ```bash
-git clone https://github.com/imcmurray/Aegis.git && cd Aegis && git checkout --detach fd6feb82f7bef0b7350bc1fc74515c8f5c8da145 && cargo install --path tools/cli && aegis --protocol-version
+git clone https://github.com/imcmurray/Aegis.git && cd Aegis && git checkout --detach 50c8022a27dee4c3fc0374802f57962455260e36 && cargo install --path tools/cli && aegis --protocol-version
 ```
 
 Then:
@@ -52,7 +52,7 @@ The plugin looks for `aegis` on `PATH`, then `~/.cargo/bin/aegis`, then `~/.loca
 - Row **Edit** on hover or keyboard selection; Ctrl+N for a new entry
 - Categories (Aegis folders), TOTP, notes, generated passwords
 - Session lock, suspend, and logout lock the vault
-- **Backup** exports/imports the same `.aegis` files as the [web app](https://imcmurray.github.io/Aegis/)
+- **Backup** exports/imports the same `.aegis` files as the [web app](https://imcmurray.github.io/Aegis/). Import into a **new** vault is the default. Import **over** an existing vault needs **Replace existing vault**, which runs `aegis import --replace` (CLI ≥ `50c8022`). The new live passphrase must still differ from the backup passphrase.
 - **About** explains Aegis, post-quantum hybrid crypto, and where to send feedback
 
 ![About](docs/screenshots/about.png)
@@ -91,7 +91,16 @@ aegis agent stop
 - Clipboard copy is `aegis copy`, not `printf secret \| wl-copy`
 - Plugins run unsandboxed inside `omarchy-shell`. Read the repo before `--enable`
 
-Portable copy of a vault is **Backup → Export**. `~/.local/share/aegis` is the sealed local store, not a file you copy to another PC.
+Portable copy of a vault is **Backup → Export** (a `.aegis` file). `~/.local/share/aegis` is the sealed local store, not a file you copy to another PC.
+
+CLI equivalent of the overlay’s Replace toggle:
+
+```bash
+aegis --json import --replace \
+  --backup-passphrase-file backup.pw \
+  --new-passphrase-file live.pw \
+  vault.aegis
+```
 
 ## License
 
