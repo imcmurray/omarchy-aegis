@@ -4,6 +4,7 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
 node "$root/tests/vault.test.js"
 bash "$root/tests/passfile-test.sh"
 bash "$root/tests/session-watch-test.sh"
+bash "$root/tests/import-roundtrip.sh"
 
 if command -v omarchy >/dev/null 2>&1; then
   omarchy plugin validate "$root"
