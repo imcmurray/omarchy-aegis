@@ -801,6 +801,7 @@ Item {
             foreground: root.foreground
             accent: root.accent
             nextField: confirmField
+            passwordMeter: root.screen === "create"
             invalid: root.invalidField === "pass"
             errorText: invalid ? root.invalidMessage : ""
             onKeyPressed: function(event) { root.routeKeys(event) }
@@ -821,6 +822,7 @@ Item {
             foreground: root.foreground
             accent: root.accent
             prevField: passField
+            compareTo: root.passphrase
             invalid: root.invalidField === "confirm"
             errorText: invalid ? root.invalidMessage : ""
             onKeyPressed: function(event) { root.routeKeys(event) }
@@ -1092,6 +1094,7 @@ Item {
               text: root.composePassword
               foreground: root.foreground
               accent: root.accent
+              passwordMeter: true
               nextField: composeUrlField
               prevField: composeUserField
               onKeyPressed: function(event) { root.routeKeys(event) }
@@ -1288,6 +1291,7 @@ Item {
             text: root.backupPass
             foreground: root.foreground
             accent: root.accent
+            passwordMeter: true
             nextField: backupLiveField
             prevField: backupPathField
             invalid: root.invalidField === "backupPass"
@@ -1308,6 +1312,9 @@ Item {
             text: root.livePass
             foreground: root.foreground
             accent: root.accent
+            passwordMeter: true
+            compareTo: root.backupPass
+            compareMustDiffer: true
             prevField: backupPassField
             invalid: root.invalidField === "backupLive"
             errorText: invalid ? root.invalidMessage : ""

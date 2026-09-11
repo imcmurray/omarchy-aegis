@@ -240,6 +240,30 @@ function resultFromOutput(stdout, stderr, exitCode) {
   return obj
 }
 
+function passwordStrength(pw) {
+  var s = String(pw || "")
+  if (!s) return { score: 0, label: "", role: "" }
+  var classes = 0
+  if (/[a-z]/.test(s)) classes++
+  if (/[A-Z]/.test(s)) classes++
+  if (/[0-9]/.test(s)) classes++
+  if (/[^a-zA-Z0-9]/.test(s)) classes++
+  var len = s.length
+  var score = 0
+  if (len >= 8) score++
+  if (len >= 12) score++
+  if (classes >= 2) score++
+  if (classes >= 3 && len >= 10) score++
+  if (classes >= 4 && len >= 12) score++
+  if (score > 4) score = 4
+  if (score < 1) score = 1
+  if (len < 8) score = Math.min(score, 1)
+  if (len < 6 || /^(.)\1+$/.test(s)) score = Math.min(score, 1)
+  var labels = ["", "weak", "fair", "good", "strong"]
+  var roles = ["", "urgent", "muted", "accent", "accent"]
+  return { score: score, label: labels[score], role: roles[score] }
+}
+
 function newEntryId() {
   var chars = "0123456789abcdef"
   var out = ""

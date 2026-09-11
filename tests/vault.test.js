@@ -10,6 +10,12 @@ const vault = {}
 vm.createContext(vault)
 vm.runInContext(source, vault, { filename: "Vault.js" })
 
+assert.equal(vault.passwordStrength("").score, 0)
+assert.equal(vault.passwordStrength("abc").label, "weak")
+assert.equal(vault.passwordStrength("aaaaaaaa").label, "weak")
+assert.equal(vault.passwordStrength("correct-Horse-battery-staple-9").score >= 3, true)
+assert.equal(vault.passwordStrength("Aa1!Aa1!Aa1!").label === "good" || vault.passwordStrength("Aa1!Aa1!Aa1!").label === "strong", true)
+
 assert.equal(vault.REQUIRED_PROTOCOL, 1)
 assert.equal(vault.protocolVersion("1\n"), 1)
 assert.equal(vault.protocolOk(1), true)
