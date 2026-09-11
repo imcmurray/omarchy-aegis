@@ -114,7 +114,7 @@ Item {
       visible: root.hintOnRight
       anchors.verticalCenter: parent.verticalCenter
       spacing: Style.space(4)
-      width: root.holdHintSlot ? Math.max(implicitWidth, Style.space(108)) : 0
+      width: root.holdHintSlot ? implicitWidth : 0
 
       Text {
         visible: root.hintIcon !== ""
@@ -131,8 +131,6 @@ Item {
         color: root.hintColor
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
-        elide: Text.ElideRight
-        width: Math.min(implicitWidth, Style.space(72))
         anchors.verticalCenter: parent.verticalCenter
       }
     }
