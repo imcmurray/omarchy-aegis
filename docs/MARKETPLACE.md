@@ -33,7 +33,7 @@ _No response_
 
 ### Maintainer notes
 
-Beta v0.5.1 overlay client of the native aegis CLI (password manager). Plugin id `ianm.aegis`. Requires `aegis` on PATH; README pins https://github.com/imcmurray/Aegis to commit fd6feb82f7bef0b7350bc1fc74515c8f5c8da145. No sudo or pkexec. Optional Hyprland bind is documented only — not installed.
+Beta v0.5.1 overlay client of the native aegis CLI (password manager). Plugin id `ianm.aegis`. Requires `aegis` on PATH. CLI install is a fail-closed `&&` chain: clone, `git checkout --detach fd6feb82f7bef0b7350bc1fc74515c8f5c8da145`, then `cargo install --path tools/cli`. No sudo or pkexec. Optional Hyprland bind is documented only — not installed.
 
 ### Submission checklist
 

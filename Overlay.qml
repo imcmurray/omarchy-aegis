@@ -100,11 +100,7 @@ Item {
   readonly property string issuesUrl: "https://github.com/imcmurray/omarchy-aegis/issues/new/choose"
   readonly property string aegisRepoUrl: "https://github.com/imcmurray/Aegis"
   readonly property string aegisWebUrl: "https://imcmurray.github.io/Aegis/"
-  readonly property string installSnippet: "git clone https://github.com/imcmurray/Aegis.git
-cd Aegis
-git checkout --detach fd6feb82f7bef0b7350bc1fc74515c8f5c8da145
-cargo install --path tools/cli
-aegis --protocol-version"
+  readonly property string installSnippet: "git clone https://github.com/imcmurray/Aegis.git && cd Aegis && git checkout --detach fd6feb82f7bef0b7350bc1fc74515c8f5c8da145 && cargo install --path tools/cli && aegis --protocol-version"
   readonly property string vaultDataDir: {
     var data = Quickshell.env("AEGIS_DATA")
     if (data) return data

@@ -142,6 +142,6 @@ assert.notEqual(
 )
 
 assert.match(vault.copyToast("password"), /Copied password/)
-assert.match(vault.missingCliMessage(), /cargo install/)
+assert.match(vault.missingCliMessage(), /fd6feb82f7bef0b7350bc1fc74515c8f5c8da145/)
 
 console.log("vault.test.js ok")

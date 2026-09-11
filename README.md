@@ -20,14 +20,10 @@ Requires [`aegis`](https://github.com/imcmurray/Aegis) on `PATH` (`aegis --proto
 
 **No sudo or pkexec is required.** This plugin does not install packages or edit Hyprland/Omarchy config unless you add the optional keybind below.
 
-Pin the CLI to the commit that added `aegis` (detached HEAD), then install from that tree:
+Pin the CLI to the commit that added `aegis` (detached HEAD), then install from that tree. The checkout and build are one `&&` chain so a failed pin cannot fall through to `cargo install`:
 
 ```bash
-git clone https://github.com/imcmurray/Aegis.git
-cd Aegis
-git checkout --detach fd6feb82f7bef0b7350bc1fc74515c8f5c8da145
-cargo install --path tools/cli
-aegis --protocol-version
+git clone https://github.com/imcmurray/Aegis.git && cd Aegis && git checkout --detach fd6feb82f7bef0b7350bc1fc74515c8f5c8da145 && cargo install --path tools/cli && aegis --protocol-version
 ```
 
 Then:
