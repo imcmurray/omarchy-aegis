@@ -100,7 +100,7 @@ Item {
   readonly property string issuesUrl: "https://github.com/imcmurray/omarchy-aegis/issues/new/choose"
   readonly property string aegisRepoUrl: "https://github.com/imcmurray/Aegis"
   readonly property string aegisWebUrl: "https://imcmurray.github.io/Aegis/"
-  readonly property string installSnippet: "git clone https://github.com/imcmurray/Aegis.git && cd Aegis && git checkout --detach 50c8022a27dee4c3fc0374802f57962455260e36 && cargo install --path tools/cli && aegis --protocol-version"
+  readonly property string installSnippet: "git clone https://github.com/imcmurray/Aegis.git && cd Aegis && git checkout --detach cd99293f90312a53d6f45366db05fb1b79e341c6 && cargo install --path tools/cli && aegis --protocol-version"
   readonly property string vaultDataDir: {
     var data = Quickshell.env("AEGIS_DATA")
     if (data) return data
@@ -1450,7 +1450,7 @@ Item {
             width: parent.width
             textFormat: Text.PlainText
             wrapMode: Text.Wrap
-            text: "Standard Aegis .aegis backup — same file as the web app. Import uses the backup passphrase, then a new live-vault passphrase (they must differ). If a vault already exists here, turn on Replace existing vault (aegis import --replace)."
+            text: "Standard Aegis .aegis backup — same file as the web app. Import uses the backup passphrase, then a new live-vault passphrase (they must differ). Replace existing vault runs aegis import --replace: it wipes this store and mints a new vault identity. Recovery Kit is what keeps the same vault_id."
             color: root.foreground
             opacity: 0.75
             font.family: root.fontFamily
@@ -1514,7 +1514,7 @@ Item {
             width: parent.width
             visible: root.backupImport && root.hasVault
             label: "Replace existing vault"
-            description: "Runs aegis import --replace. Wipes this vault and restores the backup. Live passphrase must still differ from the backup passphrase."
+            description: "aegis import --replace. Wipes this vault, restores the backup, new vault_id. Live passphrase must differ from the backup passphrase. Not a Recovery Kit restore."
             checked: root.backupReplace
             foreground: root.foreground
             accent: root.accent

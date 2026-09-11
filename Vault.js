@@ -32,7 +32,7 @@ function protocolOk(version) {
 }
 
 function missingCliMessage() {
-  return "aegis is not on PATH. Install the native CLI from the Aegis repo at commit 50c8022a27dee4c3fc0374802f57962455260e36 (see the overlay Copy install command)."
+  return "aegis is not on PATH. Install the native CLI from Aegis v2.0.0-rc.1.1 (commit cd99293f90312a53d6f45366db05fb1b79e341c6; see Copy install)."
 }
 
 function protocolMismatchMessage(version) {

@@ -173,11 +173,13 @@ Item {
     if (kind === "export")
       return [bin, "--json", "export", "--backup-passphrase-file", paths.pass, String(job.path || "")]
     if (kind === "import") {
-      var imp = [bin, "--json", "import",
-        "--backup-passphrase-file", paths.backup,
-        "--new-passphrase-file", paths.live]
+      var imp = [bin, "--json", "import"]
       if (job.replace) imp.push("--replace")
-      imp.push(String(job.path || ""))
+      imp.push(
+        "--backup-passphrase-file", paths.backup,
+        "--new-passphrase-file", paths.live,
+        String(job.path || "")
+      )
       return imp
     }
     if (kind === "rpc") return [bin, "rpc"]
@@ -309,7 +311,13 @@ Item {
       return
     }
     if (kind === "import") {
-      toast("Imported vault")
+      root.entries = []
+      root.folders = []
+      root.vaultId = ""
+      root.unlocked = false
+      root.entriesRevision++
+      root.foldersRevision++
+      toast("Imported as a new live vault")
       refreshStatus()
       refreshFolders()
       return

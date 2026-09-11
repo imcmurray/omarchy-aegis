@@ -37,10 +37,9 @@ aegis "${src[@]}" export --backup-passphrase-file "$tmp/backup.pw" "$tmp/vault.a
 
 aegis "${dst[@]}" --passphrase-file "$tmp/dst.pw" create
 # Plugin flag order when Replace existing vault is on:
-aegis "${dst[@]}" --json import \
+aegis "${dst[@]}" --json import --replace \
   --backup-passphrase-file "$tmp/backup.pw" \
   --new-passphrase-file "$tmp/dst.pw" \
-  --replace \
   "$tmp/vault.aegis" >/dev/null
 
 aegis "${dst[@]}" --passphrase-file "$tmp/dst.pw" unlock
