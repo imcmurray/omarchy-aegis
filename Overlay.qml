@@ -885,19 +885,23 @@ aegis --protocol-version"
         }
 
         // ---- create / unlock
-        Column {
+        ColumnLayout {
           anchors.fill: parent
           spacing: Style.space(10)
           visible: root.screen === "create" || root.screen === "unlock"
 
           AegisAscii {
-            width: parent.width
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.minimumHeight: Style.space(72)
+            Layout.preferredHeight: Style.space(180)
             color: root.foreground
             scanColor: root.accent
             active: root.opened && (root.screen === "create" || root.screen === "unlock")
           }
 
           Text {
+            Layout.fillWidth: true
             width: parent.width
             visible: root.screen === "create"
             textFormat: Text.PlainText
@@ -911,6 +915,7 @@ aegis --protocol-version"
 
           Field {
             id: passField
+            Layout.fillWidth: true
             width: parent.width
             password: true
             placeholderText: "Master passphrase"
@@ -931,6 +936,7 @@ aegis --protocol-version"
 
           Field {
             id: confirmField
+            Layout.fillWidth: true
             width: parent.width
             visible: root.screen === "create"
             password: true
@@ -948,6 +954,7 @@ aegis --protocol-version"
           }
 
           Button {
+            Layout.fillWidth: false
             text: root.screen === "create" ? "Create vault" : "Unlock"
             foreground: root.foreground
             accent: root.accent
@@ -957,6 +964,7 @@ aegis --protocol-version"
           }
 
           Button {
+            Layout.fillWidth: false
             visible: root.screen === "create" || root.screen === "unlock"
             text: "Import .aegis backup"
             foreground: root.foreground

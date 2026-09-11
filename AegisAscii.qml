@@ -1,7 +1,8 @@
 import QtQuick
 import qs.Commons
 
-// Logo above a full-width AEGIS wordmark. Passphrase sits below in the overlay.
+// Logo above a full-width AEGIS wordmark. Shrinks to the height the
+// overlay gives it so Unlock / Import stay on screen.
 Item {
   id: root
 
@@ -13,20 +14,23 @@ Item {
   property real wordOpacity: 0
   property real markOpacity: 0
 
-  readonly property int markSize: Math.max(Style.space(72), Math.round(width * 0.34))
-  readonly property int letterSize: Math.max(Style.space(40), Math.round(width * 0.18))
+  readonly property int wordBand: Math.max(Style.space(28), Math.min(Style.space(56), Math.round(height * 0.34)))
+  readonly property int markSize: {
+    var leftover = height - wordBand - Style.space(10)
+    if (leftover < Style.space(40)) leftover = Style.space(40)
+    var cap = Math.min(Math.round(width * 0.38), Style.space(110))
+    return Math.max(Style.space(40), Math.min(leftover, cap))
+  }
 
-  implicitWidth: width
-  implicitHeight: col.implicitHeight
-  width: parent ? parent.width : implicitWidth
-  height: implicitHeight
+  implicitWidth: Style.space(200)
+  implicitHeight: Style.space(140)
 
   function restart() {
     showAnim.stop()
     pulseAnim.stop()
     shown = false
     wordOpacity = 0
-    mark.opacity = 1
+    markOpacity = 0
     if (active) showAnim.start()
   }
 
@@ -34,16 +38,17 @@ Item {
   Component.onCompleted: if (active) restart()
 
   Column {
-    id: col
+    anchors.horizontalCenter: parent.horizontalCenter
+    anchors.verticalCenter: parent.verticalCenter
     width: parent.width
-    spacing: Style.space(12)
+    spacing: Style.space(8)
 
     AegisIcon {
       id: mark
       iconSize: root.markSize
       color: root.scanColor
       anchors.horizontalCenter: parent.horizontalCenter
-      opacity: root.shown ? mark.opacity : 0
+      opacity: root.markOpacity
       scale: root.shown ? 1 : 0.88
       transformOrigin: Item.Center
       Behavior on scale { NumberAnimation { duration: 340; easing.type: Easing.OutCubic } }
@@ -52,17 +57,19 @@ Item {
     Text {
       id: word
       width: parent.width
+      height: root.wordBand
       textFormat: Text.PlainText
       text: "AEGIS"
       color: root.color
       opacity: root.wordOpacity
       font.family: Style.font.family
-      font.pixelSize: root.letterSize
-      font.letterSpacing: Style.space(8)
+      font.pixelSize: root.wordBand
+      font.letterSpacing: Style.space(6)
       font.bold: true
-      fontSizeMode: Text.HorizontalFit
-      minimumPixelSize: Style.space(28)
+      fontSizeMode: Text.Fit
+      minimumPixelSize: Style.space(22)
       horizontalAlignment: Text.AlignHCenter
+      verticalAlignment: Text.AlignVCenter
       wrapMode: Text.NoWrap
     }
   }
@@ -70,7 +77,7 @@ Item {
   SequentialAnimation {
     id: showAnim
     PropertyAction { target: root; property: "shown"; value: true }
-    NumberAnimation { target: mark; property: "opacity"; from: 0; to: 1; duration: 280; easing.type: Easing.OutCubic }
+    NumberAnimation { target: root; property: "markOpacity"; from: 0; to: 1; duration: 280; easing.type: Easing.OutCubic }
     NumberAnimation { target: root; property: "wordOpacity"; from: 0; to: 1; duration: 320; easing.type: Easing.OutCubic }
     PauseAnimation { duration: 200 }
     ScriptAction { script: if (root.active) pulseAnim.start() }
@@ -80,7 +87,7 @@ Item {
     id: pulseAnim
     loops: Animation.Infinite
     running: false
-    NumberAnimation { target: mark; property: "opacity"; to: 0.6; duration: 1200; easing.type: Easing.InOutSine }
-    NumberAnimation { target: mark; property: "opacity"; to: 1; duration: 1200; easing.type: Easing.InOutSine }
+    NumberAnimation { target: root; property: "markOpacity"; to: 0.6; duration: 1200; easing.type: Easing.InOutSine }
+    NumberAnimation { target: root; property: "markOpacity"; to: 1; duration: 1200; easing.type: Easing.InOutSine }
   }
 }
