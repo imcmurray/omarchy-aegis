@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Write stdin to a mode-0600 file under $XDG_RUNTIME_DIR and print the path.
+# Used so Omarchy never puts a passphrase on argv, in env, or in the process title.
+set -euo pipefail
+
+runtime="${XDG_RUNTIME_DIR:-/tmp}/aegis-omarchy"
+mkdir -p "$runtime"
+chmod 700 "$runtime"
+umask 077
+file="$(mktemp "$runtime/pass.XXXXXX")"
+chmod 600 "$file"
+cat > "$file"
+printf '%s\n' "$file"

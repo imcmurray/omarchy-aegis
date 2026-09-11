@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+root="$(cd "$(dirname "$0")/.." && pwd)"
+node "$root/tests/vault.test.js"
+bash "$root/tests/passfile-test.sh"
+bash "$root/tests/session-watch-test.sh"
+
+if command -v omarchy >/dev/null 2>&1; then
+  omarchy plugin validate "$root"
+fi
+
+if [[ -n "${OMARCHY_PATH:-}" && -x "$(command -v qmllint || true)" ]]; then
+  qmllint -I "$OMARCHY_PATH/shell" \
+    "$root/Overlay.qml" "$root/BarWidget.qml" "$root/Service.qml"
+fi
+
+echo "all tests ok"

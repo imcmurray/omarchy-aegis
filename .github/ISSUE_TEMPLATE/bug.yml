@@ -1,0 +1,38 @@
+name: Bug report
+description: Something is broken in the Omarchy Aegis plugin
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For vault crypto, `aegis` CLI, or the web app, open an issue on [Aegis](https://github.com/imcmurray/Aegis) instead.
+        An AI agent can file this too — include the plugin version from the overlay footer.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you got.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Plugin version
+      description: From the overlay footer (v0.5.0 · commit).
+      placeholder: v0.5.0 · abc1234
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1.
+        2.
+        3.
+  - type: textarea
+    id: extra
+    attributes:
+      label: Environment
+      description: Omarchy version, `aegis --protocol-version`, anything else useful.

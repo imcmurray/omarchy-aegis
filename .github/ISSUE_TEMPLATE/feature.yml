@@ -1,0 +1,22 @@
+name: Feature request
+description: A change or addition you want in the Omarchy Aegis plugin
+title: "[feat] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Plugin UX and Omarchy integration belong here. Vault crypto and the native CLI belong in [Aegis](https://github.com/imcmurray/Aegis).
+        An AI agent can file this on your behalf.
+  - type: textarea
+    id: want
+    attributes:
+      label: What do you want
+      description: The behavior or UI you want, and why.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: How you use Aegis on Omarchy today, and what is missing.

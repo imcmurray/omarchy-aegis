@@ -1,0 +1,2 @@
+-- Optional. Summon the Aegis overlay. Pick a chord that is free on your setup.
+-- o.bind("SUPER + SHIFT + P", "Aegis", "omarchy-shell shell summon ianm.aegis '{}'")
