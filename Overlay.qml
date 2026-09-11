@@ -83,6 +83,7 @@ Item {
   property int rowHeight: Math.max(Style.space(48), Style.font.body + Style.font.caption + Style.spacing.rowPaddingX * 2)
 
   readonly property bool gateScreen: screen === "create" || screen === "unlock"
+  readonly property bool vaultEmpty: unlocked && !filterText && displayModel.count === 0
   readonly property bool cliPresent: vault ? vault.cliPresent === true : false
   readonly property bool protocolOk: vault ? vault.protocolSupported === true : false
   readonly property bool hasVault: vault ? vault.hasVault === true : false
@@ -919,7 +920,7 @@ aegis --protocol-version"
             wrapMode: Text.Wrap
             text: root.screen === "create"
               ? "Choose a master passphrase. The first unlock takes a few seconds."
-              : "Welcome back."
+              : "Enter your master passphrase."
             color: root.foreground
             opacity: 0.7
             font.family: root.fontFamily
@@ -988,14 +989,16 @@ aegis --protocol-version"
         }
 
         // ---- search
-        Column {
+        ColumnLayout {
           anchors.fill: parent
           spacing: root.contentSpacing
           visible: root.screen === "search"
 
           TextField {
             id: searchField
+            Layout.fillWidth: true
             width: parent.width
+            visible: !root.vaultEmpty
             placeholderText: "Search logins…"
             text: root.filterText
             foreground: root.foreground
@@ -1008,9 +1011,10 @@ aegis --protocol-version"
 
           Flow {
             id: folderChips
+            Layout.fillWidth: true
             width: parent.width
             spacing: Style.space(6)
-            visible: root.folderList.length > 0
+            visible: root.folderList.length > 0 && !root.vaultEmpty
 
             Button {
               text: "All"
@@ -1037,11 +1041,58 @@ aegis --protocol-version"
             }
           }
 
+          ColumnLayout {
+            visible: root.vaultEmpty
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            spacing: Style.space(12)
+
+            AegisAscii {
+              Layout.fillWidth: true
+              Layout.fillHeight: true
+              Layout.minimumHeight: Style.space(88)
+              color: root.foreground
+              scanColor: root.accent
+              active: root.opened && root.screen === "search" && root.vaultEmpty
+            }
+
+            Text {
+              Layout.fillWidth: true
+              horizontalAlignment: Text.AlignHCenter
+              textFormat: Text.PlainText
+              text: "Your vault is empty."
+              color: root.foreground
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.body
+            }
+            Text {
+              Layout.fillWidth: true
+              horizontalAlignment: Text.AlignHCenter
+              wrapMode: Text.Wrap
+              textFormat: Text.PlainText
+              text: "Add a login to get started."
+              color: root.foreground
+              opacity: 0.7
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+            }
+            Button {
+              Layout.fillWidth: true
+              text: "New entry"
+              foreground: root.foreground
+              accent: root.accent
+              bordered: true
+              focusable: true
+              onClicked: root.startNewEntry()
+            }
+          }
+
           ListView {
             id: resultList
-            width: parent.width
+            visible: !root.vaultEmpty
+            Layout.fillWidth: true
             Layout.fillHeight: true
-            height: parent.height - searchField.height - folderChips.height - parent.spacing * 2
+            width: parent.width
             model: displayModel
             clip: true
             spacing: Style.space(4)
@@ -1161,10 +1212,11 @@ aegis --protocol-version"
           }
 
           Text {
-            visible: displayModel.count === 0 && !root.busy
+            visible: !root.vaultEmpty && displayModel.count === 0 && !root.busy
+            Layout.fillWidth: true
             width: parent.width
             textFormat: Text.PlainText
-            text: root.filterText ? "No matches" : "No entries yet. Ctrl+N to add one, Ctrl+E to edit."
+            text: "No matches"
             color: root.foreground
             opacity: 0.7
             font.family: root.fontFamily
@@ -1657,7 +1709,9 @@ aegis --protocol-version"
             textFormat: Text.PlainText
             text: root.toastMessage || (
               root.screen === "search"
-                ? "Enter copy · Edit on row · Ctrl+E edit · Ctrl+N new · Backup · Esc"
+                ? (root.vaultEmpty
+                    ? "Ctrl+N new · Esc dismiss"
+                    : "Enter copy · Edit on row · Ctrl+E edit · Ctrl+N new · Backup · Esc")
                 : root.screen === "compose"
                   ? (root.editing
                     ? "Tab fields · Ctrl+S save · Ctrl+G generate · Ctrl+D delete · Esc"

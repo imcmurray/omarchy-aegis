@@ -2,7 +2,7 @@
 
 Your Aegis vault, summoned from the Omarchy bar. Search, copy, edit, lock with the session.
 
-![omarchy-aegis About overlay on Omarchy](preview.png)
+![omarchy-aegis welcome overlay](preview.png)
 
 This is a **client of the native [`aegis`](https://github.com/imcmurray/Aegis) CLI**. Crypto stays in `aegis`. The overlay never reimplements Argon2, PQ KEM/signatures, or vault storage. It does not talk to `aegis-dev-vault-server`.
 
