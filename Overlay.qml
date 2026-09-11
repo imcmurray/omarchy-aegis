@@ -47,6 +47,8 @@ Item {
   property string pluginCommit: ""
   property string composeSnapshot: ""
   property string pendingLeave: ""
+  property string invalidField: ""
+  property string invalidMessage: ""
   property string backupPath: Vault.defaultExportPath(Quickshell.env("HOME"))
   property string backupPass: ""
   property string livePass: ""
@@ -457,18 +459,48 @@ Item {
     vault.copyField(id, field || "password")
   }
 
+  function setInvalid(fieldId, message) {
+    root.invalidField = fieldId
+    root.invalidMessage = message
+    Qt.callLater(function() {
+      if (fieldId === "pass") passField.forceActiveFocus()
+      else if (fieldId === "confirm") confirmField.forceActiveFocus()
+      else if (fieldId === "name") composeNameField.forceActiveFocus()
+      else if (fieldId === "backupPath") backupPathField.forceActiveFocus()
+      else if (fieldId === "backupPass") backupPassField.forceActiveFocus()
+      else if (fieldId === "backupLive") backupLiveField.forceActiveFocus()
+    })
+  }
+
+  function clearInvalid(fieldId) {
+    if (!fieldId || root.invalidField === fieldId) {
+      root.invalidField = ""
+      root.invalidMessage = ""
+    }
+  }
+
   function submitPassphrase() {
     if (!vault || busy) return
     if (root.screen === "unlock") {
-      if (!root.passphrase) return
+      if (!root.passphrase) {
+        root.setInvalid("pass", "Passphrase is required")
+        return
+      }
       vault.unlock(root.passphrase)
       root.passphrase = ""
       return
     }
     if (root.screen === "create") {
-      if (!root.passphrase) return
+      if (!root.passphrase) {
+        root.setInvalid("pass", "Passphrase is required")
+        return
+      }
+      if (!root.passphraseConfirm) {
+        root.setInvalid("confirm", "Confirm the passphrase")
+        return
+      }
       if (root.passphrase !== root.passphraseConfirm) {
-        vault.errorMessage = "Passphrases do not match"
+        root.setInvalid("confirm", "Passphrases do not match")
         return
       }
       vault.createVault(root.passphrase)
@@ -480,7 +512,7 @@ Item {
   function submitCompose() {
     if (!vault || busy) return
     if (!String(root.composeName || "").trim()) {
-      vault.errorMessage = "Name is required"
+      root.setInvalid("name", "Name is required")
       return
     }
     var folderName = String(root.composeFolderName || "").trim()
@@ -523,9 +555,21 @@ Item {
 
   function submitBackup() {
     if (!vault || busy) return
+    if (!String(root.backupPath || "").trim()) {
+      root.setInvalid("backupPath", "Path is required")
+      return
+    }
+    if (!root.backupPass) {
+      root.setInvalid("backupPass", "Backup passphrase is required")
+      return
+    }
     if (root.backupImport) {
+      if (!root.livePass) {
+        root.setInvalid("backupLive", "New live passphrase is required")
+        return
+      }
       if (root.backupPass === root.livePass) {
-        vault.errorMessage = "Live-vault passphrase must differ from the backup passphrase"
+        root.setInvalid("backupLive", "Must differ from backup passphrase")
         return
       }
       vault.importVault(root.backupPath, root.backupPass, root.livePass, root.backupReplace)
@@ -540,7 +584,10 @@ Item {
   onFoldersRevisionChanged: rebuildDisplay()
   onFilterTextChanged: if (root.screen === "search") rebuildDisplay()
   onFolderFilterChanged: if (root.screen === "search") rebuildDisplay()
-  onScreenChanged: Qt.callLater(focusScreen)
+  onScreenChanged: {
+    root.clearInvalid()
+    Qt.callLater(focusScreen)
+  }
 
   ListModel { id: displayModel }
 
@@ -686,7 +733,7 @@ Item {
           visible: root.errorMessage !== ""
           textFormat: Text.PlainText
           text: root.errorMessage
-          color: root.accent
+          color: Color.urgent
           wrapMode: Text.Wrap
           font.family: root.fontFamily
           font.pixelSize: Style.font.caption
@@ -745,7 +792,7 @@ Item {
             font.pixelSize: Style.font.caption
           }
 
-          TextField {
+          Field {
             id: passField
             width: parent.width
             password: true
@@ -753,16 +800,18 @@ Item {
             text: root.passphrase
             foreground: root.foreground
             accent: root.accent
-            Keys.priority: Keys.BeforeItem
-            Keys.onPressed: function(event) { root.routeKeys(event) }
-            onTextChanged: root.passphrase = text
+            nextField: confirmField
+            invalid: root.invalidField === "pass"
+            errorText: invalid ? root.invalidMessage : ""
+            onKeyPressed: function(event) { root.routeKeys(event) }
+            onEdited: { root.passphrase = text; root.clearInvalid("pass") }
             onAccepted: {
               if (root.screen === "unlock") root.submitPassphrase()
               else confirmField.forceActiveFocus()
             }
           }
 
-          TextField {
+          Field {
             id: confirmField
             width: parent.width
             visible: root.screen === "create"
@@ -771,9 +820,11 @@ Item {
             text: root.passphraseConfirm
             foreground: root.foreground
             accent: root.accent
-            Keys.priority: Keys.BeforeItem
-            Keys.onPressed: function(event) { root.routeKeys(event) }
-            onTextChanged: root.passphraseConfirm = text
+            prevField: passField
+            invalid: root.invalidField === "confirm"
+            errorText: invalid ? root.invalidMessage : ""
+            onKeyPressed: function(event) { root.routeKeys(event) }
+            onEdited: { root.passphraseConfirm = text; root.clearInvalid("confirm") }
             onAccepted: root.submitPassphrase()
           }
 
@@ -989,52 +1040,51 @@ Item {
           clip: true
           visible: root.screen === "compose"
 
-          TextField {
+          Field {
             id: composeNameField
             width: parent.width
             placeholderText: "Name"
             text: root.composeName
             foreground: root.foreground
             accent: root.accent
-            KeyNavigation.tab: composeFolderField
-            KeyNavigation.backtab: composeSaveButton
-            Keys.priority: Keys.BeforeItem
-            Keys.onPressed: function(event) { root.routeKeys(event) }
-            onTextChanged: root.composeName = text
+            nextField: composeFolderField
+            prevField: composeSaveButton
+            invalid: root.invalidField === "name"
+            errorText: invalid ? root.invalidMessage : ""
+            onKeyPressed: function(event) { root.routeKeys(event) }
+            onEdited: { root.composeName = text; root.clearInvalid("name") }
             onAccepted: composeFolderField.forceActiveFocus()
           }
-          TextField {
+          Field {
             id: composeFolderField
             width: parent.width
             placeholderText: "Category (optional — type a name to create one)"
             text: root.composeFolderName
             foreground: root.foreground
             accent: root.accent
-            KeyNavigation.tab: composeUserField
-            KeyNavigation.backtab: composeNameField
-            Keys.priority: Keys.BeforeItem
-            Keys.onPressed: function(event) { root.routeKeys(event) }
-            onTextChanged: root.composeFolderName = text
+            nextField: composeUserField
+            prevField: composeNameField
+            onKeyPressed: function(event) { root.routeKeys(event) }
+            onEdited: root.composeFolderName = text
             onAccepted: composeUserField.forceActiveFocus()
           }
-          TextField {
+          Field {
             id: composeUserField
             width: parent.width
             placeholderText: "Username"
             text: root.composeUsername
             foreground: root.foreground
             accent: root.accent
-            KeyNavigation.tab: composePasswordField
-            KeyNavigation.backtab: composeFolderField
-            Keys.priority: Keys.BeforeItem
-            Keys.onPressed: function(event) { root.routeKeys(event) }
-            onTextChanged: root.composeUsername = text
+            nextField: composePasswordField
+            prevField: composeFolderField
+            onKeyPressed: function(event) { root.routeKeys(event) }
+            onEdited: root.composeUsername = text
             onAccepted: composePasswordField.forceActiveFocus()
           }
           Row {
             width: parent.width
             spacing: Style.space(8)
-            TextField {
+            Field {
               id: composePasswordField
               width: parent.width - Style.space(90)
               password: true
@@ -1042,11 +1092,10 @@ Item {
               text: root.composePassword
               foreground: root.foreground
               accent: root.accent
-              KeyNavigation.tab: composeUrlField
-              KeyNavigation.backtab: composeUserField
-              Keys.priority: Keys.BeforeItem
-              Keys.onPressed: function(event) { root.routeKeys(event) }
-              onTextChanged: root.composePassword = text
+              nextField: composeUrlField
+              prevField: composeUserField
+              onKeyPressed: function(event) { root.routeKeys(event) }
+              onEdited: root.composePassword = text
               onAccepted: composeUrlField.forceActiveFocus()
             }
             Button {
@@ -1058,21 +1107,20 @@ Item {
               onClicked: root.generateComposePassword()
             }
           }
-          TextField {
+          Field {
             id: composeUrlField
             width: parent.width
             placeholderText: "URL"
             text: root.composeUrl
             foreground: root.foreground
             accent: root.accent
-            KeyNavigation.tab: composeTotpField
-            KeyNavigation.backtab: composePasswordField
-            Keys.priority: Keys.BeforeItem
-            Keys.onPressed: function(event) { root.routeKeys(event) }
-            onTextChanged: root.composeUrl = text
+            nextField: composeTotpField
+            prevField: composePasswordField
+            onKeyPressed: function(event) { root.routeKeys(event) }
+            onEdited: root.composeUrl = text
             onAccepted: composeTotpField.forceActiveFocus()
           }
-          TextField {
+          Field {
             id: composeTotpField
             width: parent.width
             password: true
@@ -1080,11 +1128,10 @@ Item {
             text: root.composeTotp
             foreground: root.foreground
             accent: root.accent
-            KeyNavigation.tab: composeNotesField
-            KeyNavigation.backtab: composeUrlField
-            Keys.priority: Keys.BeforeItem
-            Keys.onPressed: function(event) { root.routeKeys(event) }
-            onTextChanged: root.composeTotp = text
+            nextField: composeNotesField
+            prevField: composeUrlField
+            onKeyPressed: function(event) { root.routeKeys(event) }
+            onEdited: root.composeTotp = text
             onAccepted: composeNotesField.forceActiveFocus()
           }
           Item {
@@ -1219,20 +1266,21 @@ Item {
             font.pixelSize: Style.font.caption
           }
 
-          TextField {
+          Field {
             id: backupPathField
             width: parent.width
             placeholderText: "Path to .aegis file"
             text: root.backupPath
             foreground: root.foreground
             accent: root.accent
-            KeyNavigation.tab: backupPassField
-            Keys.priority: Keys.BeforeItem
-            Keys.onPressed: function(event) { root.routeKeys(event) }
-            onTextChanged: root.backupPath = text
+            nextField: backupPassField
+            invalid: root.invalidField === "backupPath"
+            errorText: invalid ? root.invalidMessage : ""
+            onKeyPressed: function(event) { root.routeKeys(event) }
+            onEdited: { root.backupPath = text; root.clearInvalid("backupPath") }
             onAccepted: backupPassField.forceActiveFocus()
           }
-          TextField {
+          Field {
             id: backupPassField
             width: parent.width
             password: true
@@ -1240,17 +1288,18 @@ Item {
             text: root.backupPass
             foreground: root.foreground
             accent: root.accent
-            KeyNavigation.tab: backupLiveField
-            KeyNavigation.backtab: backupPathField
-            Keys.priority: Keys.BeforeItem
-            Keys.onPressed: function(event) { root.routeKeys(event) }
-            onTextChanged: root.backupPass = text
+            nextField: backupLiveField
+            prevField: backupPathField
+            invalid: root.invalidField === "backupPass"
+            errorText: invalid ? root.invalidMessage : ""
+            onKeyPressed: function(event) { root.routeKeys(event) }
+            onEdited: { root.backupPass = text; root.clearInvalid("backupPass") }
             onAccepted: {
               if (root.backupImport) backupLiveField.forceActiveFocus()
               else root.submitBackup()
             }
           }
-          TextField {
+          Field {
             id: backupLiveField
             width: parent.width
             visible: root.backupImport
@@ -1259,10 +1308,11 @@ Item {
             text: root.livePass
             foreground: root.foreground
             accent: root.accent
-            KeyNavigation.backtab: backupPassField
-            Keys.priority: Keys.BeforeItem
-            Keys.onPressed: function(event) { root.routeKeys(event) }
-            onTextChanged: root.livePass = text
+            prevField: backupPassField
+            invalid: root.invalidField === "backupLive"
+            errorText: invalid ? root.invalidMessage : ""
+            onKeyPressed: function(event) { root.routeKeys(event) }
+            onEdited: { root.livePass = text; root.clearInvalid("backupLive") }
             onAccepted: root.submitBackup()
           }
           Toggle {
