@@ -1,10 +1,10 @@
 # omarchy-aegis
 
-Beta **v0.5.0**. Not submitted to the Omarchy plugin marketplace yet.
+Your Aegis vault, summoned from the Omarchy bar. Search, copy, edit, lock with the session.
 
-Search the Aegis vault and copy logins from an Omarchy overlay.
+![omarchy-aegis About overlay on Omarchy](preview.png)
 
-This plugin is a **client of the native `aegis` CLI**. It does not implement Argon2, PQ crypto, or vault storage. It does not talk to `aegis-dev-vault-server` or `localhost:8787`.
+This is a **client of the native [`aegis`](https://github.com/imcmurray/Aegis) CLI**. Crypto stays in `aegis`. The overlay never reimplements Argon2, PQ KEM/signatures, or vault storage. It does not talk to `aegis-dev-vault-server`.
 
 ```
 Omarchy overlay  →  aegis  →  aegis agent  →  ~/.local/share/aegis/secrets/
@@ -12,90 +12,61 @@ Omarchy overlay  →  aegis  →  aegis agent  →  ~/.local/share/aegis/secrets
 
 Unlock once. Search and copy hit the running agent. Argon2id (≥ 64 MiB) is not paid per keystroke.
 
-## Requirements
+**Beta v0.5.1.** Built for Omarchy Quattro. Feedback welcome — **About** (or F1) in the overlay, or [open an issue](https://github.com/imcmurray/omarchy-aegis/issues/new/choose).
 
-- Omarchy Quattro (`omarchy-shell` plugin support)
-- The native CLI from [Aegis](https://github.com/imcmurray/Aegis) (`aegis --protocol-version` must print `1`)
+## Install
+
+Requires [`aegis`](https://github.com/imcmurray/Aegis) on `PATH` (`aegis --protocol-version` must print `1`):
 
 ```bash
 git clone https://github.com/imcmurray/Aegis.git
 cd Aegis
 cargo install --path tools/cli
-aegis --protocol-version   # 1
+aegis --protocol-version
 ```
 
-The plugin looks for `aegis` on `PATH`, then `~/.cargo/bin/aegis`, then `~/.local/bin/aegis`. It runs every command as `env -u AEGIS_KDF …` so a leftover test KDF cannot weaken create/unlock.
-
-## Install
+Then:
 
 ```bash
 omarchy plugin add https://github.com/imcmurray/omarchy-aegis.git --enable
 ```
 
-Issues and feature requests: [github.com/imcmurray/omarchy-aegis/issues](https://github.com/imcmurray/omarchy-aegis/issues). **About** in the overlay (or F1) explains Aegis, the beta, and those links. The version line also opens a new issue. An AI agent can file one there too.
-
-Or from this checkout:
-
-```bash
-omarchy plugin add "$PWD" --enable
-omarchy plugin validate "$PWD"
-```
-
-A padlock appears on the right of the bar. The overlay title is **omarchy-aegis**. Click the padlock, or:
+The padlock lands on the right of the bar. Click it, or:
 
 ```bash
 omarchy-shell shell summon ianm.aegis '{}'
 ```
 
-Optional keybind — add to `~/.config/hypr/bindings.lua`:
+Optional keybind in `~/.config/hypr/bindings.lua`:
 
 ```lua
 o.bind("SUPER + SHIFT + P", "omarchy-aegis", "omarchy-shell shell summon ianm.aegis '{}'")
 ```
 
-## Usage
+The plugin looks for `aegis` on `PATH`, then `~/.cargo/bin/aegis`, then `~/.local/bin/aegis`. Every command runs as `env -u AEGIS_KDF …`.
+
+## What you get
+
+- Overlay search: Enter copies the password (`aegis copy`, 30s wipe)
+- Row **Edit** on hover or keyboard selection; Ctrl+N for a new entry
+- Categories (Aegis folders), TOTP, notes, generated passwords
+- Session lock, suspend, and logout lock the vault
+- **Backup** exports/imports the same `.aegis` files as the [web app](https://imcmurray.github.io/Aegis/)
+- **About** explains Aegis, post-quantum hybrid crypto, and where to send feedback
+
+![About](docs/screenshots/about.png)
+
+## Keyboard
 
 | | |
 |---|---|
-| Left click padlock | Open / close overlay |
-| Right click padlock | Lock the vault |
 | Enter | Copy password |
-| Ctrl+Enter / Ctrl+E / row **Edit** / double-click | Edit that entry |
-| Ctrl+N / **New** | New entry |
-| Category chips | Filter by Aegis folder |
-| **Backup** | Export or import a `.aegis` file |
-| Tab / Shift+Tab | Move between form fields |
-| Enter (in a form) | Next field, or save on the last field |
-| Ctrl+S | Save entry / confirm backup |
-| Ctrl+G | Generate password (edit form) |
-| Ctrl+D | Delete entry (edit form, with confirm) |
+| Ctrl+E / Ctrl+Enter | Edit selected |
+| Ctrl+N | New entry |
 | Ctrl+U / Ctrl+T | Copy username / TOTP |
-| Ctrl+L / **Lock** | Lock the vault |
-| Ctrl+Shift+E / Ctrl+Shift+I | Export / import `.aegis` |
-| ↑ ↓ PgUp PgDn Home End | Move in the list |
-| Escape | Back / dismiss |
-
-Create and unlock take a few seconds (production Argon2id). A status line shows while that runs. After unlock, the agent stays up and auto-locks after 300s idle.
-
-The plugin also locks the vault when Omarchy **locks the session**, **suspends**, or **logs out** (and if `omarchy-shell` itself exits). The agent stays running; unlock again from the overlay.
-
-Categories are Aegis folders. Filter with the chips under search; type a category name when adding or editing an entry to assign or create one.
-
-`.aegis` backups are the same files as the Aegis web app. Export here, Import in the browser on another PC, or the other way around. Import asks for the backup passphrase plus a new live-vault passphrase (they must differ). Importing over an existing vault needs `aegis import --replace` from the Aegis CLI.
-
-The sealed native store lives at `~/.local/share/aegis` (or `$AEGIS_DATA`). That is what this machine uses while unlocked; it is not a portable Aegis backup. To move a vault to another PC or the web app, use **Backup → Export**.
-
-Import requires **two** passphrases: the backup’s, and a new live-vault passphrase that must differ (Aegis D18). A normal `.aegis` restore mints a new vault identity.
-
-## Security
-
-- Passphrases go to `aegis --passphrase-file` via a mode `0600` file under `$XDG_RUNTIME_DIR`, then the file is deleted. Never argv, env, or process title.
-- Search lists `EntrySummary` only (name, username, URL, flags). Passwords are not in the QML model.
-- Clipboard copy is `aegis copy`, not `printf secret | wl-copy`.
-- Session lock, suspend, and logout run `aegis lock` (Hyprland session-lock poll + logind `PrepareForSleep` / shutdown).
-- No `AEGIS_KDF=test`. No `AEGIS_DEV_*`. No `~/.local/share/aegis-dev`.
-
-If `aegis` is missing, the overlay tells you to `cargo install --path tools/cli` from the Aegis checkout.
+| Ctrl+L | Lock |
+| F1 | About |
+| Esc | Back / dismiss |
 
 ## Remove
 
@@ -103,21 +74,22 @@ If `aegis` is missing, the overlay tells you to `cargo install --path tools/cli`
 omarchy plugin remove ianm.aegis
 ```
 
-That does not delete `~/.local/share/aegis/` or stop a running `aegis agent`. Lock or stop the agent separately if you want:
+That does not delete `~/.local/share/aegis/` or stop `aegis agent`:
 
 ```bash
 aegis lock
 aegis agent stop
 ```
 
-## Layout
+## Security
 
-```
-manifest.json     plugin contract
-Overlay.qml       summon UI
-BarWidget.qml     padlock
-Service.qml       process queue → aegis
-Vault.js          JSON parse (no secrets in the list model)
-bin/aegis-passfile        0600 passphrase files
-bin/aegis-session-watch   lock vault on lock / suspend / logout
-```
+- Passphrases go through `--passphrase-file` (mode `0600` under `$XDG_RUNTIME_DIR`), never argv or env
+- Search lists metadata only — no passwords in the QML model
+- Clipboard copy is `aegis copy`, not `printf secret \| wl-copy`
+- Plugins run unsandboxed inside `omarchy-shell`. Read the repo before `--enable`
+
+Portable copy of a vault is **Backup → Export**. `~/.local/share/aegis` is the sealed local store, not a file you copy to another PC.
+
+## License
+
+MIT. The `encrypted_add` mark is Material Symbols (Apache-2.0, Google).
