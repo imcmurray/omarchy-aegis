@@ -261,7 +261,8 @@ function passwordStrength(pw) {
   if (len < 6 || /^(.)\1+$/.test(s)) score = Math.min(score, 1)
   var labels = ["", "weak", "fair", "good", "strong"]
   var roles = ["", "urgent", "muted", "accent", "accent"]
-  return { score: score, label: labels[score], role: roles[score] }
+  var icons = ["", "󰀦", "󰀪", "󰄬", "󰄭"]
+  return { score: score, label: labels[score], role: roles[score], icon: icons[score] }
 }
 
 function newEntryId() {

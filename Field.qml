@@ -3,9 +3,10 @@ import qs.Commons
 import qs.Ui
 import "Vault.js" as Vault
 
-// Empty required errors sit in the placeholder (left). Hints for filled
-// fields sit to the right and hide while the input is focused. Password
-// strength still paints the border while typing.
+// Empty required errors sit in the placeholder (left). Other hints sit
+// outside the field on the right (icon + word). Strength stays visible
+// while typing so themes without a "good" green still read clearly.
+// Validation/match labels hide while the field is focused.
 Item {
   id: root
 
@@ -50,8 +51,19 @@ Item {
     }
     return Color.foreground
   }
+  readonly property string hintIcon: {
+    if (invalid && errorText) return "󰀪"
+    if (showCompare && !compareOk) return "󰀪"
+    if (showCompare && compareOk && !compareMustDiffer) return "󰄬"
+    if (showMeter) return strength.icon || ""
+    return ""
+  }
   readonly property bool hintOnLeft: invalid && errorText !== "" && input.text.length === 0
-  readonly property bool hintOnRight: hintText !== "" && !hintOnLeft && !input.activeFocus
+  readonly property bool hintOnRight: {
+    if (hintText === "" || hintOnLeft) return false
+    if (showMeter) return true
+    return !input.activeFocus
+  }
   readonly property bool holdHintSlot: passwordMeter || compareTo !== "" || hintOnRight
   readonly property bool showRing: invalid || showMeter || (showCompare && !compareOk) || (showCompare && compareOk && !compareMustDiffer)
 
@@ -96,17 +108,32 @@ Item {
       }
     }
 
-    Text {
+    Row {
       id: hintLabel
       visible: root.hintOnRight
       anchors.verticalCenter: parent.verticalCenter
-      textFormat: Text.PlainText
-      text: root.hintText
-      color: root.hintColor
-      font.family: Style.font.family
-      font.pixelSize: Style.font.caption
-      elide: Text.ElideRight
-      width: root.holdHintSlot ? Style.space(88) : 0
+      spacing: Style.space(4)
+      width: root.holdHintSlot ? Math.max(implicitWidth, Style.space(108)) : 0
+
+      Text {
+        visible: root.hintIcon !== ""
+        textFormat: Text.PlainText
+        text: root.hintIcon
+        color: root.hintColor
+        font.family: Style.font.family
+        font.pixelSize: Style.font.body
+        anchors.verticalCenter: parent.verticalCenter
+      }
+      Text {
+        textFormat: Text.PlainText
+        text: root.hintText
+        color: root.hintColor
+        font.family: Style.font.family
+        font.pixelSize: Style.font.caption
+        elide: Text.ElideRight
+        width: Math.min(implicitWidth, Style.space(72))
+        anchors.verticalCenter: parent.verticalCenter
+      }
     }
   }
 }
