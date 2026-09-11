@@ -336,6 +336,16 @@ Item {
     }
   }
 
+  function recheckCli() {
+    root.cliPath = ""
+    root.cliPresent = false
+    root.protocolSupported = false
+    root.protocolVersion = -1
+    root.ready = false
+    root.errorMessage = ""
+    bootstrap()
+  }
+
   function bootstrap() {
     enqueue({
       kind: "resolve",

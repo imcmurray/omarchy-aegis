@@ -32,7 +32,7 @@ function protocolOk(version) {
 }
 
 function missingCliMessage() {
-  return "aegis is not on PATH. Install the native CLI from the Aegis repo:\ncargo install --path tools/cli"
+  return "aegis is not on PATH. Clone https://github.com/imcmurray/Aegis and run cargo install --path tools/cli"
 }
 
 function protocolMismatchMessage(version) {

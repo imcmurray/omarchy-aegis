@@ -67,7 +67,7 @@ Item {
   property int contentMargin: Style.spacing.panelPadding
   readonly property string productName: "omarchy-aegis"
   readonly property string headerSubtitle: {
-    if (root.screen === "missing") return "CLI missing"
+    if (root.screen === "missing") return cliPresent ? "CLI too old" : "Install aegis"
     if (root.screen === "create") return "Create vault"
     if (root.screen === "unlock") return "Unlock vault"
     if (root.screen === "compose") return root.editing ? "Edit entry" : "New entry"
@@ -98,6 +98,10 @@ Item {
   readonly property string issuesUrl: "https://github.com/imcmurray/omarchy-aegis/issues/new/choose"
   readonly property string aegisRepoUrl: "https://github.com/imcmurray/Aegis"
   readonly property string aegisWebUrl: "https://imcmurray.github.io/Aegis/"
+  readonly property string installSnippet: "git clone https://github.com/imcmurray/Aegis.git
+cd Aegis
+cargo install --path tools/cli
+aegis --protocol-version"
   readonly property string vaultDataDir: {
     var data = Quickshell.env("AEGIS_DATA")
     if (data) return data
@@ -188,6 +192,14 @@ Item {
 
   function openAbout() {
     root.mode = "about"
+  }
+
+  function copyInstallSnippet() {
+    copyInstallProc.running = true
+  }
+
+  function recheckAegis() {
+    if (vault && typeof vault.recheckCli === "function") vault.recheckCli()
   }
 
   function reallyDismiss() {
@@ -787,14 +799,86 @@ Item {
           spacing: Style.space(10)
           visible: root.screen === "missing"
 
+          AegisAscii {
+            width: parent.width
+            color: root.accent
+          }
+
           Text {
             width: parent.width
             textFormat: Text.PlainText
-            text: root.errorMessage || Vault.missingCliMessage()
             wrapMode: Text.Wrap
+            text: root.cliPresent
+              ? ("This aegis binary is protocol " + (vault ? vault.protocolVersion : "?") + ". omarchy-aegis needs protocol 1. Update the CLI, then Recheck.")
+              : "omarchy-aegis is only the overlay. It does not install the vault. You need the native aegis CLI on PATH before you can create or unlock a vault."
             color: root.foreground
             font.family: root.fontFamily
             font.pixelSize: Style.font.body
+          }
+
+          Text {
+            width: parent.width
+            visible: !root.cliPresent
+            textFormat: Text.PlainText
+            wrapMode: Text.Wrap
+            text: "Rust + cargo, then:"
+            color: root.foreground
+            opacity: 0.75
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+          }
+
+          BorderSurface {
+            width: parent.width
+            visible: !root.cliPresent
+            implicitHeight: installBlock.implicitHeight + Style.space(16)
+            radius: root.cornerRadius
+            color: Style.controlFill(false, false, root.foreground, root.accent)
+            borderSpec: Border.controlSpec("normal", root.foreground, root.accent)
+
+            Text {
+              id: installBlock
+              anchors.left: parent.left
+              anchors.right: parent.right
+              anchors.top: parent.top
+              anchors.margins: Style.space(8)
+              textFormat: Text.PlainText
+              wrapMode: Text.Wrap
+              text: root.installSnippet
+              color: root.foreground
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+            }
+          }
+
+          Flow {
+            width: parent.width
+            spacing: Style.space(8)
+
+            Button {
+              visible: !root.cliPresent
+              text: "Copy install"
+              foreground: root.foreground
+              accent: root.accent
+              bordered: true
+              focusable: true
+              onClicked: root.copyInstallSnippet()
+            }
+            Button {
+              text: "Open Aegis repo"
+              foreground: root.foreground
+              accent: root.accent
+              focusable: true
+              onClicked: root.openUrl(root.aegisRepoUrl)
+            }
+            Button {
+              text: "Recheck"
+              foreground: root.foreground
+              accent: root.accent
+              bordered: true
+              focusable: true
+              onClicked: root.recheckAegis()
+            }
           }
         }
 
@@ -803,6 +887,11 @@ Item {
           anchors.fill: parent
           spacing: Style.space(10)
           visible: root.screen === "create" || root.screen === "unlock"
+
+          AegisAscii {
+            width: parent.width
+            color: root.accent
+          }
 
           Text {
             width: parent.width
@@ -1551,7 +1640,9 @@ Item {
                     ? "Enter next · Ctrl+S confirm · Esc"
                     : root.screen === "about"
                       ? "F1 about · click a link · Esc back"
-                      : "Enter submit · Esc dismiss"
+                      : root.screen === "missing"
+                        ? "Install aegis · Recheck · Esc dismiss"
+                        : "Enter submit · Esc dismiss"
             )
             color: root.foreground
             opacity: 0.55
@@ -1617,6 +1708,19 @@ Item {
         onCanceled: { discardConfirm.opened = false; root.pendingLeave = "" }
         onConfirmed: root.confirmDiscard()
       }
+    }
+  }
+
+  Process {
+    id: copyInstallProc
+    command: ["wl-copy"]
+    stdinEnabled: true
+    onStarted: {
+      write(root.installSnippet)
+      stdinEnabled = false
+    }
+    onExited: {
+      if (vault && typeof vault.toast === "function") vault.toast("Copied install commands")
     }
   }
 

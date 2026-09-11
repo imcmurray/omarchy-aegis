@@ -43,7 +43,7 @@ Optional keybind in `~/.config/hypr/bindings.lua`:
 o.bind("SUPER + SHIFT + P", "omarchy-aegis", "omarchy-shell shell summon ianm.aegis '{}'")
 ```
 
-The plugin looks for `aegis` on `PATH`, then `~/.cargo/bin/aegis`, then `~/.local/bin/aegis`. Every command runs as `env -u AEGIS_KDF …`.
+The plugin looks for `aegis` on `PATH`, then `~/.cargo/bin/aegis`, then `~/.local/bin/aegis`. Every command runs as `env -u AEGIS_KDF …`. If the CLI is missing, the overlay shows the install commands, a copy button, and **Recheck**.
 
 ## What you get
 
