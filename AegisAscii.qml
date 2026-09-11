@@ -1,137 +1,77 @@
 import QtQuick
 import qs.Commons
 
-// Pixel Aegis mark (shield + keyhole + plus). Reveal on open, then a
-// visible accent scan. Driven by `active`, not Item.visible (parents stay
-// "visible" while the overlay is closed).
+// Wordmark + the real encrypted_add SVG (not a pixel blob).
 Item {
   id: root
 
   property color color: Color.foreground
   property color scanColor: Color.accent
   property bool active: false
-  property int cell: Style.space(5)
+  property int letterSize: Math.max(Style.space(36), Math.round(Style.font.heading * 2.4))
+  property int markSize: Math.round(letterSize * 1.15)
 
-  // 1 = filled. Shield on the left, plus on the right.
-  readonly property var rows: [
-    "0011111110000100",
-    "0111111111000100",
-    "1100000001101111",
-    "1100011101100100",
-    "1100011101100100",
-    "1100001001100000",
-    "1110000001100000",
-    "0111000011000000",
-    "0011100111111000",
-    "0001100000110000"
-  ]
+  property bool shown: false
 
-  property int revealed: 0
-  property int scanRow: -1
-  property int scanTick: 0
-  property int filledCount: 0
-
-  readonly property int cols: rows[0].length
-  readonly property int rowCount: rows.length
-
-  implicitWidth: cols * cell
-  implicitHeight: rowCount * cell
+  implicitWidth: row.implicitWidth
+  implicitHeight: row.implicitHeight
   width: parent ? parent.width : implicitWidth
   height: implicitHeight
 
-  function isOn(r, c) {
-    return rows[r].charAt(c) === "1"
-  }
-
-  function fillIndex(r, c) {
-    var n = 0
-    for (var y = 0; y < rowCount; y++) {
-      for (var x = 0; x < cols; x++) {
-        if (!isOn(y, x)) continue
-        if (y === r && x === c) return n
-        n++
-      }
-    }
-    return -1
-  }
-
-  function countFilled() {
-    var n = 0
-    for (var y = 0; y < rowCount; y++) {
-      for (var x = 0; x < cols; x++) {
-        if (isOn(y, x)) n++
-      }
-    }
-    return n
-  }
-
   function restart() {
-    revealTimer.stop()
-    scanTimer.stop()
-    revealed = 0
-    scanRow = -1
-    scanTick = 0
-    filledCount = countFilled()
-    if (active) revealTimer.start()
+    showAnim.stop()
+    pulseAnim.stop()
+    shown = false
+    mark.opacity = 1
+    if (active) showAnim.start()
   }
 
   onActiveChanged: restart()
-  Component.onCompleted: {
-    filledCount = countFilled()
-    if (active) restart()
-  }
+  Component.onCompleted: if (active) restart()
 
-  Item {
-    id: grid
-    width: root.cols * root.cell
-    height: root.rowCount * root.cell
+  Row {
+    id: row
     anchors.horizontalCenter: parent.horizontalCenter
+    spacing: Style.space(16)
+    opacity: root.shown ? 1 : 0
+    scale: root.shown ? 1 : 0.94
+    transformOrigin: Item.Center
 
-    Repeater {
-      model: root.rowCount * root.cols
-      Rectangle {
-        required property int index
-        readonly property int row: Math.floor(index / root.cols)
-        readonly property int col: index % root.cols
-        readonly property bool on: root.isOn(row, col)
-        readonly property int order: on ? root.fillIndex(row, col) : -1
-        visible: on
-        x: col * root.cell
-        y: row * root.cell
-        width: root.cell
-        height: root.cell
-        color: row === root.scanRow ? root.scanColor : root.color
-        opacity: (order >= 0 && order < root.revealed) ? 1 : 0
-        Behavior on opacity { NumberAnimation { duration: 70 } }
-        Behavior on color { ColorAnimation { duration: 120 } }
-      }
+    Behavior on opacity { NumberAnimation { duration: 280; easing.type: Easing.OutCubic } }
+    Behavior on scale { NumberAnimation { duration: 320; easing.type: Easing.OutCubic } }
+
+    Text {
+      textFormat: Text.PlainText
+      text: "AEGIS"
+      color: root.color
+      font.family: Style.font.family
+      font.pixelSize: root.letterSize
+      font.letterSpacing: Style.space(3)
+      font.bold: true
+      verticalAlignment: Text.AlignVCenter
+      height: root.markSize
+    }
+
+    AegisIcon {
+      id: mark
+      iconSize: root.markSize
+      color: root.scanColor
+      anchors.verticalCenter: parent.verticalCenter
     }
   }
 
-  Timer {
-    id: revealTimer
-    interval: 16
-    repeat: true
-    onTriggered: {
-      if (root.revealed < root.filledCount) {
-        root.revealed += 1
-        return
-      }
-      stop()
-      scanTimer.start()
-    }
+  SequentialAnimation {
+    id: showAnim
+    PropertyAction { target: root; property: "shown"; value: true }
+    PauseAnimation { duration: 400 }
+    ScriptAction { script: if (root.active) pulseAnim.start() }
   }
 
-  Timer {
-    id: scanTimer
-    interval: 140
-    repeat: true
+  SequentialAnimation {
+    id: pulseAnim
+    loops: Animation.Infinite
     running: false
-    onTriggered: {
-      root.scanTick += 1
-      var n = root.rowCount
-      var i = root.scanTick % (n + 10)
-      root.scanRow = i < n ? i : -1
-    }
+    NumberAnimation { target: mark; property: "opacity"; to: 0.55; duration: 1100; easing.type: Easing.InOutSine }
+    NumberAnimation { target: mark; property: "opacity"; to: 1; duration: 1100; easing.type: Easing.InOutSine }
   }
 }
