@@ -801,7 +801,9 @@ aegis --protocol-version"
 
           AegisAscii {
             width: parent.width
-            color: root.accent
+            color: root.foreground
+            scanColor: root.accent
+            active: root.opened && root.screen === "missing"
           }
 
           Text {
@@ -890,7 +892,9 @@ aegis --protocol-version"
 
           AegisAscii {
             width: parent.width
-            color: root.accent
+            color: root.foreground
+            scanColor: root.accent
+            active: root.opened && (root.screen === "create" || root.screen === "unlock")
           }
 
           Text {
