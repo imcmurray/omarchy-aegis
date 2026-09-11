@@ -16,11 +16,16 @@ Unlock once. Search and copy hit the running agent. Argon2id (≥ 64 MiB) is not
 
 ## Install
 
-Requires [`aegis`](https://github.com/imcmurray/Aegis) on `PATH` (`aegis --protocol-version` must print `1`):
+Requires [`aegis`](https://github.com/imcmurray/Aegis) on `PATH` (`aegis --protocol-version` must print `1`).
+
+**No sudo or pkexec is required.** This plugin does not install packages or edit Hyprland/Omarchy config unless you add the optional keybind below.
+
+Pin the CLI to the commit that added `aegis` (detached HEAD), then install from that tree:
 
 ```bash
 git clone https://github.com/imcmurray/Aegis.git
 cd Aegis
+git checkout --detach fd6feb82f7bef0b7350bc1fc74515c8f5c8da145
 cargo install --path tools/cli
 aegis --protocol-version
 ```
@@ -37,7 +42,7 @@ The padlock lands on the right of the bar. Click it, or:
 omarchy-shell shell summon ianm.aegis '{}'
 ```
 
-Optional keybind in `~/.config/hypr/bindings.lua`:
+Optional keybind — you add this yourself; the plugin never writes `bindings.lua`:
 
 ```lua
 o.bind("SUPER + SHIFT + P", "omarchy-aegis", "omarchy-shell shell summon ianm.aegis '{}'")
@@ -55,6 +60,8 @@ The plugin looks for `aegis` on `PATH`, then `~/.cargo/bin/aegis`, then `~/.loca
 - **About** explains Aegis, post-quantum hybrid crypto, and where to send feedback
 
 ![About](docs/screenshots/about.png)
+
+The listing preview is the first-run create vault screen (`preview.png`). Extra shots live in `docs/screenshots/`.
 
 ## Keyboard
 
@@ -92,4 +99,4 @@ Portable copy of a vault is **Backup → Export**. `~/.local/share/aegis` is the
 
 ## License
 
-MIT. The `encrypted_add` mark is Material Symbols (Apache-2.0, Google).
+MIT. See `LICENSE` and `NOTICE`. The `encrypted_add` mark is Material Symbols (Apache-2.0, Google). No sudo or pkexec is required.

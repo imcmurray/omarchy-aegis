@@ -102,6 +102,7 @@ Item {
   readonly property string aegisWebUrl: "https://imcmurray.github.io/Aegis/"
   readonly property string installSnippet: "git clone https://github.com/imcmurray/Aegis.git
 cd Aegis
+git checkout --detach fd6feb82f7bef0b7350bc1fc74515c8f5c8da145
 cargo install --path tools/cli
 aegis --protocol-version"
   readonly property string vaultDataDir: {

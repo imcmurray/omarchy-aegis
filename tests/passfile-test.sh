@@ -5,7 +5,9 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
 bin="$root/bin/aegis-passfile"
 chmod +x "$bin"
 
-export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/tmp}"
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/tmp/aegis-omarchy-test-runtime}"
+mkdir -p "$XDG_RUNTIME_DIR"
+chmod 700 "$XDG_RUNTIME_DIR"
 secret=$'hunter2-not-a-real-passphrase'
 
 path="$("$bin" <<<"$secret")"
