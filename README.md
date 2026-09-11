@@ -32,7 +32,7 @@ The plugin looks for `aegis` on `PATH`, then `~/.cargo/bin/aegis`, then `~/.loca
 omarchy plugin add https://github.com/imcmurray/omarchy-aegis.git --enable
 ```
 
-Issues and feature requests: [github.com/imcmurray/omarchy-aegis/issues](https://github.com/imcmurray/omarchy-aegis/issues). The version line in the overlay opens a new issue. An AI agent can file one there too.
+Issues and feature requests: [github.com/imcmurray/omarchy-aegis/issues](https://github.com/imcmurray/omarchy-aegis/issues). **About** in the overlay (or F1) explains Aegis, the beta, and those links. The version line also opens a new issue. An AI agent can file one there too.
 
 Or from this checkout:
 

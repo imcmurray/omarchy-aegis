@@ -72,6 +72,7 @@ Item {
     if (root.screen === "unlock") return "Unlock vault"
     if (root.screen === "compose") return root.editing ? "Edit entry" : "New entry"
     if (root.screen === "backup") return root.backupImport ? "Import backup" : "Export backup"
+    if (root.screen === "about") return "About"
     if (root.filterText) return "Search"
     return ""
   }
@@ -95,6 +96,8 @@ Item {
   readonly property string pluginVersion: (manifest && manifest.version) ? String(manifest.version) : "0.5.0"
   readonly property string repoUrl: "https://github.com/imcmurray/omarchy-aegis"
   readonly property string issuesUrl: "https://github.com/imcmurray/omarchy-aegis/issues/new/choose"
+  readonly property string aegisRepoUrl: "https://github.com/imcmurray/Aegis"
+  readonly property string aegisWebUrl: "https://imcmurray.github.io/Aegis/"
   readonly property string vaultDataDir: {
     var data = Quickshell.env("AEGIS_DATA")
     if (data) return data
@@ -116,6 +119,7 @@ Item {
   readonly property string screen: deriveScreen()
 
   function deriveScreen() {
+    if (mode === "about") return "about"
     if (!vault || !vault.ready) return "boot"
     if (!cliPresent) return "missing"
     if (!protocolOk) return "missing"
@@ -171,10 +175,19 @@ Item {
     return root.screen === "compose" && root.composeState() !== root.composeSnapshot
   }
 
+  function openUrl(url) {
+    var u = String(url || "")
+    if (!u) return
+    if (typeof Qt.openUrlExternally === "function") Qt.openUrlExternally(u)
+    else Quickshell.execDetached(["xdg-open", u])
+  }
+
   function openIssues() {
-    var url = root.issuesUrl
-    if (typeof Qt.openUrlExternally === "function") Qt.openUrlExternally(url)
-    else Quickshell.execDetached(["xdg-open", url])
+    root.openUrl(root.issuesUrl)
+  }
+
+  function openAbout() {
+    root.mode = "about"
   }
 
   function reallyDismiss() {
@@ -304,7 +317,7 @@ Item {
       discardConfirm.opened = true
       return
     }
-    if (root.mode === "compose" || root.mode === "backup") {
+    if (root.mode === "compose" || root.mode === "backup" || root.mode === "about") {
       root.mode = "search"
       root.clearCompose()
       root.clearSecrets()
@@ -642,6 +655,7 @@ Item {
         Shortcut { sequence: "Ctrl+S"; enabled: root.opened && root.screen === "compose"; onActivated: root.submitCompose() }
         Shortcut { sequence: "Ctrl+G"; enabled: root.opened && root.screen === "compose"; onActivated: root.generateComposePassword() }
         Shortcut { sequence: "Ctrl+D"; enabled: root.opened && root.screen === "compose" && root.editing; onActivated: root.requestDelete() }
+        Shortcut { sequence: "F1"; enabled: root.opened; onActivated: root.openAbout() }
       }
 
       ColumnLayout {
@@ -669,7 +683,7 @@ Item {
           }
 
           Column {
-            width: parent.width - Style.space(200)
+            width: parent.width - Style.space(280)
             spacing: Style.space(2)
             anchors.verticalCenter: parent.verticalCenter
 
@@ -724,6 +738,16 @@ Item {
             focusable: true
             anchors.verticalCenter: parent.verticalCenter
             onClicked: if (vault) vault.lock()
+          }
+
+          Button {
+            visible: root.screen !== "about" && root.screen !== "compose"
+            text: "About"
+            foreground: root.foreground
+            accent: root.accent
+            focusable: true
+            anchors.verticalCenter: parent.verticalCenter
+            onClicked: root.openAbout()
           }
         }
 
@@ -1352,6 +1376,159 @@ Item {
           }
         }
 
+        Flickable {
+          id: aboutPage
+          anchors.fill: parent
+          visible: root.screen === "about"
+          clip: true
+          boundsBehavior: Flickable.StopAtBounds
+          flickableDirection: Flickable.VerticalFlick
+          contentWidth: width
+          contentHeight: aboutBody.height
+          Controls.ScrollBar.vertical: Controls.ScrollBar {
+            policy: aboutPage.contentHeight > aboutPage.height
+              ? Controls.ScrollBar.AlwaysOn
+              : Controls.ScrollBar.AlwaysOff
+            contentItem: Rectangle {
+              implicitWidth: Style.space(6)
+              radius: width / 2
+              color: root.foreground
+              opacity: 0.35
+            }
+          }
+
+          Column {
+            id: aboutBody
+            width: aboutPage.width - Style.space(12)
+            spacing: Style.space(14)
+
+            Row {
+              spacing: Style.space(12)
+              AegisIcon {
+                iconSize: Style.space(40)
+                color: root.foreground
+                anchors.verticalCenter: parent.verticalCenter
+              }
+              Column {
+                spacing: Style.space(2)
+                anchors.verticalCenter: parent.verticalCenter
+                Text {
+                  textFormat: Text.PlainText
+                  text: "omarchy-aegis"
+                  color: root.foreground
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.heading
+                }
+                Text {
+                  textFormat: Text.PlainText
+                  text: "v" + root.pluginVersion + " beta" + (root.pluginCommit ? " · " + root.pluginCommit : "")
+                  color: root.foreground
+                  opacity: 0.65
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.caption
+                }
+              }
+            }
+
+            BorderSurface {
+              width: parent.width
+              implicitHeight: betaCopy.implicitHeight + Style.space(20)
+              radius: root.cornerRadius
+              color: Style.controlFill(false, false, root.foreground, root.accent)
+              borderSpec: Border.controlSpec("normal", Color.urgent, root.accent)
+
+              Text {
+                id: betaCopy
+                anchors.fill: parent
+                anchors.margins: Style.space(10)
+                textFormat: Text.PlainText
+                wrapMode: Text.Wrap
+                text: "BETA — this overlay is still being proven in real Omarchy sessions. If something feels off, please tell us. Bug reports and feature ideas (from you or your AI agent) make this better."
+                color: root.foreground
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.body
+              }
+            }
+
+            Text {
+              width: parent.width
+              textFormat: Text.PlainText
+              wrapMode: Text.Wrap
+              text: "Aegis is a password manager that keeps crypto on your machine. The web app, this overlay, and the native CLI all speak the same vault protocol. Secrets are sealed with Argon2id and XChaCha20-Poly1305. This plugin is only a client: it never reimplements the vault."
+              color: root.foreground
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.body
+            }
+
+            Text {
+              width: parent.width
+              textFormat: Text.PlainText
+              text: "Post-quantum ready"
+              color: root.accent
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.body
+              font.bold: true
+            }
+
+            Text {
+              width: parent.width
+              textFormat: Text.PlainText
+              wrapMode: Text.Wrap
+              text: "Aegis is built for a world where today’s public-key crypto will not hold. Vault sync is hybrid Ed25519 and ML-DSA-65. Sharing is hybrid X25519 and ML-KEM-768. Local storage stays a strong classical AEAD under your passphrase. The design can take hybrid storage later without changing what this overlay does."
+              color: root.foreground
+              opacity: 0.9
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.body
+            }
+
+            Text {
+              width: parent.width
+              textFormat: Text.PlainText
+              wrapMode: Text.Wrap
+              text: "Copy a vault to another PC or the browser with Backup → Export (.aegis). The folder on disk is a sealed local store, not a portable backup."
+              color: root.foreground
+              opacity: 0.85
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+            }
+
+            Flow {
+              width: parent.width
+              spacing: Style.space(8)
+
+              Button {
+                text: "Report an issue"
+                foreground: root.foreground
+                accent: root.accent
+                bordered: true
+                focusable: true
+                onClicked: root.openIssues()
+              }
+              Button {
+                text: "Plugin repo"
+                foreground: root.foreground
+                accent: root.accent
+                focusable: true
+                onClicked: root.openUrl(root.repoUrl)
+              }
+              Button {
+                text: "Aegis"
+                foreground: root.foreground
+                accent: root.accent
+                focusable: true
+                onClicked: root.openUrl(root.aegisRepoUrl)
+              }
+              Button {
+                text: "Web app"
+                foreground: root.foreground
+                accent: root.accent
+                focusable: true
+                onClicked: root.openUrl(root.aegisWebUrl)
+              }
+            }
+          }
+        }
+
         }
 
         Column {
@@ -1372,7 +1549,9 @@ Item {
                     : "Tab fields · Enter next · notes wrap · Ctrl+S save · Ctrl+G generate · Esc")
                   : root.screen === "backup"
                     ? "Enter next · Ctrl+S confirm · Esc"
-                    : "Enter submit · Esc dismiss"
+                    : root.screen === "about"
+                      ? "F1 about · click a link · Esc back"
+                      : "Enter submit · Esc dismiss"
             )
             color: root.foreground
             opacity: 0.55
