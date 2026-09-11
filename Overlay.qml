@@ -63,7 +63,17 @@ Item {
   readonly property int cornerRadius: Style.cornerRadius
   property string fontFamily: Style.font.menuFamily
   property int contentMargin: Style.spacing.panelPadding
-  property int headerHeight: Math.max(Style.space(34), Style.font.title + Style.spacing.controlPaddingY * 2)
+  readonly property string productName: "omarchy-aegis"
+  readonly property string headerSubtitle: {
+    if (root.screen === "missing") return "CLI missing"
+    if (root.screen === "create") return "Create vault"
+    if (root.screen === "unlock") return "Unlock vault"
+    if (root.screen === "compose") return root.editing ? "Edit entry" : "New entry"
+    if (root.screen === "backup") return root.backupImport ? "Import backup" : "Export backup"
+    if (root.filterText) return "Search"
+    return ""
+  }
+  property int headerHeight: Math.max(Style.space(40), Style.font.heading + (headerSubtitle !== "" ? Style.font.caption + Style.space(4) : 0) + Style.spacing.controlPaddingY)
   property int contentSpacing: Style.spacing.md
   property int cardWidth: Math.min(Style.space(560), panel.width - Style.gapsOut * 2)
   property int cardHeight: Math.min(Style.space(560), panel.height - Style.gapsOut * 2)
@@ -611,22 +621,31 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
           }
 
-          Text {
-            textFormat: Text.PlainText
+          Column {
             width: parent.width - Style.space(200)
-            text: {
-              if (root.screen === "missing") return "Aegis"
-              if (root.screen === "create") return "Create vault"
-              if (root.screen === "unlock") return "Unlock vault"
-              if (root.screen === "compose") return root.editing ? "Edit entry" : "New entry"
-              if (root.screen === "backup") return root.backupImport ? "Import backup" : "Export backup"
-              return root.filterText ? "Search" : "Aegis"
-            }
-            color: root.foreground
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.heading
-            elide: Text.ElideRight
+            spacing: Style.space(2)
             anchors.verticalCenter: parent.verticalCenter
+
+            Text {
+              textFormat: Text.PlainText
+              width: parent.width
+              text: root.productName
+              color: root.foreground
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.heading
+              elide: Text.ElideRight
+            }
+            Text {
+              visible: root.headerSubtitle !== ""
+              textFormat: Text.PlainText
+              width: parent.width
+              text: root.headerSubtitle
+              color: root.foreground
+              opacity: 0.65
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+              elide: Text.ElideRight
+            }
           }
 
           Button {

@@ -19,11 +19,11 @@ BarWidget {
   readonly property color iconColor: bar ? bar.foreground : Color.foreground
 
   readonly property string tooltip: {
-    if (!vault || !vault.ready) return "Aegis"
-    if (!cliPresent) return "Aegis · CLI missing"
-    if (unlocked) return "Aegis · unlocked"
-    if (hasVault) return "Aegis · locked"
-    return "Aegis · no vault"
+    if (!vault || !vault.ready) return "omarchy-aegis"
+    if (!cliPresent) return "omarchy-aegis · CLI missing"
+    if (unlocked) return "omarchy-aegis · unlocked"
+    if (hasVault) return "omarchy-aegis · locked"
+    return "omarchy-aegis · no vault"
   }
 
   function summonOverlay() {

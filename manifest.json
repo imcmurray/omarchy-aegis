@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "ianm.aegis",
-  "name": "Aegis",
+  "name": "omarchy-aegis",
   "version": "0.5.0",
   "author": "Ian McMurray",
   "license": "MIT",
@@ -14,8 +14,8 @@
     "service": "Service.qml"
   },
   "barWidget": {
-    "displayName": "Aegis",
-    "description": "Lock indicator for the Aegis vault. Click to search and copy logins.",
+    "displayName": "omarchy-aegis",
+    "description": "Lock indicator for omarchy-aegis. Click to search and copy logins.",
     "category": "Security",
     "aliases": ["aegis", "password", "vault", "login"],
     "allowMultiple": false,

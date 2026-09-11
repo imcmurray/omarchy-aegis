@@ -1,4 +1,4 @@
-# Aegis for Omarchy
+# omarchy-aegis
 
 Beta **v0.5.0**. Not submitted to the Omarchy plugin marketplace yet.
 
@@ -41,7 +41,7 @@ omarchy plugin add "$PWD" --enable
 omarchy plugin validate "$PWD"
 ```
 
-A padlock appears on the right of the bar. Click it, or:
+A padlock appears on the right of the bar. The overlay title is **omarchy-aegis**. Click the padlock, or:
 
 ```bash
 omarchy-shell shell summon ianm.aegis '{}'
@@ -50,7 +50,7 @@ omarchy-shell shell summon ianm.aegis '{}'
 Optional keybind — add to `~/.config/hypr/bindings.lua`:
 
 ```lua
-o.bind("SUPER + SHIFT + P", "Aegis", "omarchy-shell shell summon ianm.aegis '{}'")
+o.bind("SUPER + SHIFT + P", "omarchy-aegis", "omarchy-shell shell summon ianm.aegis '{}'")
 ```
 
 ## Usage
