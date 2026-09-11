@@ -64,7 +64,7 @@ Item {
     if (showMeter) return true
     return !input.activeFocus
   }
-  readonly property bool holdHintSlot: passwordMeter || compareTo !== "" || hintOnRight
+  readonly property bool holdHintSlot: hintOnRight
   readonly property bool showRing: invalid || showMeter || (showCompare && !compareOk) || (showCompare && compareOk && !compareMustDiffer)
 
   implicitHeight: input.implicitHeight

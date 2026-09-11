@@ -64,7 +64,7 @@ Item {
       opacity: root.wordOpacity
       font.family: Style.font.family
       font.pixelSize: root.wordBand
-      font.letterSpacing: Style.space(6)
+      font.letterSpacing: Style.space(10)
       font.bold: true
       fontSizeMode: Text.Fit
       minimumPixelSize: Style.space(22)

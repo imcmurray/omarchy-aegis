@@ -82,6 +82,7 @@ Item {
   property int cardHeight: Math.min(Style.space(560), panel.height - Style.gapsOut * 2)
   property int rowHeight: Math.max(Style.space(48), Style.font.body + Style.font.caption + Style.spacing.rowPaddingX * 2)
 
+  readonly property bool gateScreen: screen === "create" || screen === "unlock"
   readonly property bool cliPresent: vault ? vault.cliPresent === true : false
   readonly property bool protocolOk: vault ? vault.protocolSupported === true : false
   readonly property bool hasVault: vault ? vault.hasVault === true : false
@@ -688,6 +689,7 @@ aegis --protocol-version"
           spacing: Style.space(10)
 
           AegisIcon {
+            visible: !root.gateScreen
             iconSize: Style.font.heading
             color: root.foreground
             opacity: root.unlocked ? 1.0 : 0.7
@@ -695,6 +697,7 @@ aegis --protocol-version"
           }
 
           Column {
+            visible: !root.gateScreen
             width: parent.width - Style.space(280)
             spacing: Style.space(2)
             anchors.verticalCenter: parent.verticalCenter
@@ -752,7 +755,14 @@ aegis --protocol-version"
             onClicked: if (vault) vault.lock()
           }
 
+          Item {
+            visible: root.gateScreen
+            width: Math.max(0, headerRow.width - aboutButton.implicitWidth)
+            height: 1
+          }
+
           Button {
+            id: aboutButton
             visible: root.screen !== "about" && root.screen !== "compose"
             text: "About"
             foreground: root.foreground
@@ -887,14 +897,14 @@ aegis --protocol-version"
         // ---- create / unlock
         ColumnLayout {
           anchors.fill: parent
-          spacing: Style.space(10)
+          spacing: Style.space(12)
           visible: root.screen === "create" || root.screen === "unlock"
 
           AegisAscii {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.minimumHeight: Style.space(72)
-            Layout.preferredHeight: Style.space(180)
+            Layout.minimumHeight: Style.space(88)
+            Layout.preferredHeight: Style.space(200)
             color: root.foreground
             scanColor: root.accent
             active: root.opened && (root.screen === "create" || root.screen === "unlock")
@@ -902,13 +912,14 @@ aegis --protocol-version"
 
           Text {
             Layout.fillWidth: true
-            width: parent.width
-            visible: root.screen === "create"
+            horizontalAlignment: Text.AlignHCenter
             textFormat: Text.PlainText
-            text: "First unlock uses Argon2id (64 MiB) and can take a few seconds. The agent then stays running."
             wrapMode: Text.Wrap
+            text: root.screen === "create"
+              ? "Choose a master passphrase. The first unlock takes a few seconds."
+              : "Welcome back."
             color: root.foreground
-            opacity: 0.75
+            opacity: 0.7
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
           }
@@ -954,7 +965,7 @@ aegis --protocol-version"
           }
 
           Button {
-            Layout.fillWidth: false
+            Layout.fillWidth: true
             text: root.screen === "create" ? "Create vault" : "Unlock"
             foreground: root.foreground
             accent: root.accent
@@ -964,11 +975,12 @@ aegis --protocol-version"
           }
 
           Button {
-            Layout.fillWidth: false
+            Layout.fillWidth: true
             visible: root.screen === "create" || root.screen === "unlock"
-            text: "Import .aegis backup"
+            text: "Import a .aegis backup"
             foreground: root.foreground
             accent: root.accent
+            focusable: true
             onClicked: { root.mode = "backup"; root.backupImport = true }
           }
         }
@@ -1654,7 +1666,9 @@ aegis --protocol-version"
                       ? "F1 about · click a link · Esc back"
                       : root.screen === "missing"
                         ? "Install aegis · Recheck · Esc dismiss"
-                        : "Enter submit · Esc dismiss"
+                        : root.gateScreen
+                          ? "Enter · Esc dismiss"
+                          : "Enter submit · Esc dismiss"
             )
             color: root.foreground
             opacity: 0.55
