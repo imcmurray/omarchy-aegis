@@ -61,6 +61,7 @@ Item {
   readonly property bool hintOnLeft: invalid && errorText !== "" && input.text.length === 0
   readonly property bool hintOnRight: {
     if (hintText === "" || hintOnLeft) return false
+    if (invalid) return true
     if (showMeter) return true
     return !input.activeFocus
   }

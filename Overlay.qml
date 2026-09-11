@@ -526,7 +526,9 @@ aegis --protocol-version"
         return
       }
       if (root.passphrase !== root.passphraseConfirm) {
-        root.setInvalid("confirm", "Passphrases do not match")
+        root.setInvalid("confirm", "Doesn't match")
+        if (vault && typeof vault.toast === "function")
+          vault.toast("Confirm passphrase doesn't match")
         return
       }
       vault.createVault(root.passphrase)
