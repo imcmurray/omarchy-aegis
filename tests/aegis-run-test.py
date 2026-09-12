@@ -200,7 +200,7 @@ def test_symlink_xdg_rejected() -> None:
 def test_source_invariants() -> None:
     src = open(RUNNER_SRC, encoding="utf-8").read()
     qml = open(os.path.join(ROOT, "Service.qml"), encoding="utf-8").read()
-    overlay = open(os.path.join(ROOT, "Overlay.qml"), encoding="utf-8").read()
+    overlay = open(os.path.join(ROOT, "Panel.qml"), encoding="utf-8").read()
     if "#!/usr/bin/env" in src:
         fail("aegis-run uses env shebang")
     if "mktemp" in src:
@@ -222,9 +222,15 @@ def test_source_invariants() -> None:
     if "/usr/bin/python3" not in qml or "/usr/bin/setpriv" not in qml:
         fail("Service.qml missing absolute helpers")
     if '["wl-copy"]' in overlay or '["git"' in overlay or "xdg-open" in overlay:
-        fail("Overlay.qml still PATH-resolves helpers")
+        fail("Panel.qml still PATH-resolves helpers")
     if "git clone" in overlay or "cargo install" in overlay:
-        fail("Overlay.qml still documents cargo source build")
+        fail("Panel.qml still documents cargo source build")
+    if "KeyboardPanel" not in overlay:
+        fail("Panel.qml is not a bar KeyboardPanel")
+    if "PanelWindow" in overlay:
+        fail("Panel.qml still uses a fullscreen PanelWindow")
+    if "Color.menu" in overlay:
+        fail("Panel.qml still uses menu colors instead of popup colors")
     for dead in ("bin/aegis-passfile", "bin/aegis-session-watch"):
         if os.path.exists(os.path.join(ROOT, dead)):
             fail(f"leftover helper {dead}")

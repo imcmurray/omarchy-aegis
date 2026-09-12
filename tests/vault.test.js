@@ -44,14 +44,23 @@ const summaries = vault.asSummaries({
     tags: ["work"],
     has_password: true,
     has_totp: true,
+    has_notes: true,
+    updated_at: 1700000000,
     password: "SHOULD-NOT-APPEAR"
   }]
 })
 assert.equal(summaries.entries.length, 1)
 assert.equal(summaries.entries[0].name, "Mail")
 assert.equal(summaries.entries[0].url, "https://mail.example")
+assert.equal(summaries.entries[0].has_password, true)
 assert.equal(summaries.entries[0].has_totp, true)
+assert.equal(summaries.entries[0].has_notes, true)
+assert.equal(summaries.entries[0].entry_id, "deadbeef")
+assert.equal(summaries.entries[0].updated_at, 1700000000)
 assert.equal("password" in summaries.entries[0], false)
+assert.equal(vault.formatEdited(0), "")
+assert.match(vault.formatEdited(Math.floor(Date.now() / 1000)), /edited just now/)
+assert.match(vault.formatEdited(Math.floor(Date.now() / 1000) - 3600), /edited 1h ago/)
 
 const err = vault.resultFromOutput(
   '{"type":"error","code":"locked","message":"vault is locked"}\n',
@@ -123,6 +132,11 @@ assert.equal(upsert.op, "upsert_entry")
 assert.equal(upsert.entry.name, "Mail")
 assert.equal(upsert.entry.urls[0], "https://mail.example")
 assert.equal(upsert.entry.id.length, 32)
+assert.equal(vault.primaryCopyField({ has_totp: true }), "totp")
+assert.equal(vault.primaryCopyField({ has_password: true, has_totp: true }), "password")
+assert.equal(vault.primaryCopyField({ has_username: true, username: "ada" }), "username")
+assert.equal(vault.primaryCopyField({}), "")
+
 assert.equal("password" in vault.flattenEntry({
   id: "aa",
   name: "n",

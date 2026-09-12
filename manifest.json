@@ -2,14 +2,12 @@
   "schemaVersion": 1,
   "id": "ianm.aegis",
   "name": "omarchy-aegis",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "author": "Ian McMurray",
   "license": "MIT",
-  "description": "Search the Aegis vault and copy logins from an Omarchy overlay. Client of the native aegis CLI — no crypto in the plugin.",
-  "kinds": ["overlay", "bar-widget", "service"],
-  "keepLoaded": true,
+  "description": "Search the Aegis vault and copy logins from the Omarchy bar. Client of the native aegis CLI — no crypto in the plugin.",
+  "kinds": ["bar-widget", "service"],
   "entryPoints": {
-    "overlay": "Overlay.qml",
     "barWidget": "BarWidget.qml",
     "service": "Service.qml"
   },

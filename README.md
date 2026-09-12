@@ -1,6 +1,6 @@
 # omarchy-aegis
 
-Your Aegis vault, summoned from the Omarchy bar. Search, copy, edit, lock with the session.
+Your Aegis vault, summoned from the Omarchy bar. Search, copy, edit, lock with the session. The padlock opens a bar panel next to the icon, like the other bar widgets.
 
 ![omarchy-aegis welcome overlay](preview.png)
 

@@ -80,6 +80,7 @@ function flattenEntry(entry) {
   }
   return {
     id: String(entry.id || ""),
+    entry_id: String(entry.id || ""),
     folder_id: entry.folder_id ? String(entry.folder_id) : "",
     name: String(entry.name || ""),
     username: String(entry.username || ""),
@@ -89,8 +90,25 @@ function flattenEntry(entry) {
     has_username: entry.has_username === true,
     has_totp: entry.has_totp === true,
     has_url: entry.has_url === true || url !== "",
-    has_notes: entry.has_notes === true
+    has_notes: entry.has_notes === true,
+    updated_at: Number(entry.updated_at || 0)
   }
+}
+
+function formatEdited(unix) {
+  var ts = Number(unix || 0)
+  if (!isFinite(ts) || ts <= 0) return ""
+  var thenMs = ts < 1e12 ? ts * 1000 : ts
+  var seconds = Math.max(0, Math.floor((Date.now() - thenMs) / 1000))
+  if (seconds < 60) return "edited just now"
+  if (seconds < 3600) return "edited " + Math.floor(seconds / 60) + "m ago"
+  if (seconds < 86400) return "edited " + Math.floor(seconds / 3600) + "h ago"
+  if (seconds < 172800) return "edited yesterday"
+  var d = new Date(thenMs)
+  var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+  var stamp = d.getDate() + " " + months[d.getMonth()]
+  if (d.getFullYear() !== new Date().getFullYear()) stamp += " " + d.getFullYear()
+  return "edited " + stamp
 }
 
 function asSummaries(obj) {
@@ -301,6 +319,15 @@ function upsertRequest(fields) {
   }
   if (totp) entry.totp_secret = totp
   return { op: "upsert_entry", entry: entry }
+}
+
+function primaryCopyField(row) {
+  if (!row || typeof row !== "object") return ""
+  if (row.has_password === true) return "password"
+  if (row.has_totp === true) return "totp"
+  if (row.has_username === true || String(row.username || "").trim()) return "username"
+  if (row.has_url === true || String(row.url || "").trim()) return "url"
+  return ""
 }
 
 function copyToast(field) {

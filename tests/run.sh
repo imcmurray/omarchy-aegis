@@ -12,7 +12,7 @@ fi
 
 if [[ -n "${OMARCHY_PATH:-}" && -x "$(command -v qmllint || true)" ]]; then
   qmllint -I "$OMARCHY_PATH/shell" \
-    "$root/Overlay.qml" "$root/BarWidget.qml" "$root/Service.qml"
+    "$root/Panel.qml" "$root/BarWidget.qml" "$root/Service.qml"
 fi
 
 echo "all tests ok"

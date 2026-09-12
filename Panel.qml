@@ -1,6 +1,5 @@
 import Quickshell
 import Quickshell.Io
-import Quickshell.Wayland
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls as Controls
@@ -8,17 +7,24 @@ import qs.Commons
 import qs.Ui
 import "Vault.js" as Vault
 
-Item {
+Panel {
   id: root
+  moduleName: "ianm.aegis"
+  ipcTarget: "ianm.aegis"
+  manageIpc: false
 
   property var shell: null
   property var manifest: null
   property var service: null
+  property var anchorItem: null
+  property var hostWidget: null
+  readonly property var barIdentity: hostWidget || root
 
-  readonly property var vault: service || (shell && typeof shell.serviceFor === "function"
-    ? shell.serviceFor("ianm.aegis") : null)
-
-  property bool opened: false
+  readonly property var vault: {
+    if (service) return service
+    var host = shell || (bar && bar.shell)
+    return host && typeof host.serviceFor === "function" ? host.serviceFor("ianm.aegis") : null
+  }
   property string mode: "search"
   property string filterText: ""
   property int selectedIndex: 0
@@ -52,18 +58,38 @@ Item {
   property string backupPass: ""
   property string livePass: ""
   property bool backupImport: false
+  property var notePreview: ({})
+  property int tipIndex: -1
+  readonly property var tips: [
+    "Right-click the padlock in the bar to lock without opening the panel.",
+    "Enter copies the password. The clipboard wipes it after 30 seconds.",
+    "Ctrl+T copies a TOTP code. Ctrl+U copies the username.",
+    "Double-click a row to edit. Ctrl+E does the same from the keyboard.",
+    "Type a category name on an entry to create it.",
+    "Tab jumps to the next bar panel. Shift+Tab goes back.",
+    "Ctrl+G generates a password while you’re editing an entry.",
+    "Backup → Export writes the same .aegis file the web app uses.",
+    "Search matches names, usernames, URLs, and tags.",
+    "Ctrl+L locks the vault. Session lock and suspend do too.",
+    "Page Up and Page Down jump eight rows at a time.",
+    "F1 opens About — version, vault path, and where to file issues."
+  ]
+  readonly property string currentTip: {
+    var list = root.tips
+    if (!list || list.length === 0) return ""
+    return list[((root.tipIndex % list.length) + list.length) % list.length]
+  }
 
-  property color background: Color.menu.background
-  property color foreground: Color.menu.text
-  property color border: Color.menu.border
-  property var borderSpec: Border.surfaceSpec("menu", "border", border, Math.max(1, Style.space(2)))
-  property color scrim: Color.menu.scrim
-  property color selectedBackground: Color.menu.selectedBackground
-  property color selectedText: Color.menu.selectedText
+  property color background: Color.popups.background
+  property color foreground: bar ? bar.foreground : Color.popups.text
+  property color border: Color.popups.border
+  property var borderSpec: Border.surfaceSpec("popups", "border", border, Math.max(1, Style.space(2)))
+  property color selectedBackground: Style.selectedFillFor(foreground, Color.accent)
+  property color selectedText: foreground
   property color accent: Color.accent
   readonly property int cornerRadius: Style.cornerRadius
-  property string fontFamily: Style.font.menuFamily
-  property int contentMargin: Style.spacing.panelPadding
+  property string fontFamily: bar ? bar.fontFamily : Style.font.family
+  property int contentMargin: Style.spacing.popupPadding
   readonly property string productName: "omarchy-aegis"
   readonly property string headerSubtitle: {
     if (root.screen === "missing") return cliPresent ? "CLI too old" : "Install aegis"
@@ -71,14 +97,15 @@ Item {
     if (root.screen === "unlock") return "Unlock vault"
     if (root.screen === "compose") return root.editing ? "Edit entry" : "New entry"
     if (root.screen === "backup") return root.backupImport ? "Import backup" : "Export backup"
-    if (root.screen === "about") return "About"
+    if (root.screen === "about")
+      return "About · v" + root.pluginVersion + " beta" + (root.pluginCommit ? " · " + root.pluginCommit : "")
     if (root.filterText) return "Search"
     return ""
   }
   property int headerHeight: Math.max(Style.space(40), Style.font.heading + (headerSubtitle !== "" ? Style.font.caption + Style.space(4) : 0) + Style.spacing.controlPaddingY)
   property int contentSpacing: Style.spacing.md
-  property int cardWidth: Math.min(Style.space(560), panel.width - Style.gapsOut * 2)
-  property int cardHeight: Math.min(Style.space(560), panel.height - Style.gapsOut * 2)
+  property int cardWidth: Style.space(430)
+  property int cardHeight: Style.space(560)
   property int rowHeight: Math.max(Style.space(48), Style.font.body + Style.font.caption + Style.spacing.rowPaddingX * 2)
 
   readonly property bool gateScreen: screen === "create" || screen === "unlock"
@@ -94,7 +121,7 @@ Item {
   readonly property int entriesRevision: vault ? vault.entriesRevision : 0
   readonly property int foldersRevision: vault ? vault.foldersRevision : 0
   readonly property var folderList: vault && vault.folders ? vault.folders : []
-  readonly property string pluginVersion: (manifest && manifest.version) ? String(manifest.version) : "0.6.0"
+  readonly property string pluginVersion: (manifest && manifest.version) ? String(manifest.version) : "0.6.1"
   property string cliDigest: ""
   readonly property string repoUrl: "https://github.com/imcmurray/omarchy-aegis"
   readonly property string issuesUrl: "https://github.com/imcmurray/omarchy-aegis/issues/new/choose"
@@ -146,7 +173,6 @@ Item {
   }
 
   function open(payloadJson) {
-    root.opened = true
     root.mode = "search"
     root.filterText = ""
     root.selectedIndex = 0
@@ -161,12 +187,22 @@ Item {
     } else if (vault && typeof vault.refreshStatus === "function") {
       vault.refreshStatus()
     }
+    if (root.tips && root.tips.length > 0)
+      root.tipIndex = (root.tipIndex + 1) % root.tips.length
+    root.controller.show()
     Qt.callLater(function() { focusScreen() })
   }
 
   function close() {
-    root.opened = false
     clearSecrets()
+    root.notePreview = ({})
+    root.controller.hide()
+  }
+
+  function switchPanel(direction) {
+    if (root.bar && typeof root.bar.switchPanelFrom === "function")
+      return root.bar.switchPanelFrom(root.barIdentity, direction)
+    return false
   }
 
   function composeState() {
@@ -231,11 +267,10 @@ Item {
   }
 
   function reallyDismiss() {
-    root.opened = false
     root.clearCompose()
     root.clearSecrets()
-    if (root.shell && typeof root.shell.hide === "function")
-      root.shell.hide((root.manifest && root.manifest.id) || "ianm.aegis")
+    root.notePreview = ({})
+    root.controller.hide()
   }
 
   function dismiss() {
@@ -384,6 +419,13 @@ Item {
       event.accepted = true
       return
     }
+    if ((event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) && root.screen === "search") {
+      if (!(searchField && searchField.activeFocus)) {
+        root.switchPanel((event.modifiers & Qt.ShiftModifier) || event.key === Qt.Key_Backtab ? -1 : 1)
+        event.accepted = true
+      }
+      return
+    }
     var ctrl = event.modifiers & Qt.ControlModifier
     var shift = event.modifiers & Qt.ShiftModifier
     if (root.screen === "compose") {
@@ -412,7 +454,7 @@ Item {
     else if (event.key === Qt.Key_End) { root.selectAbsolute(displayModel.count - 1); event.accepted = true }
     else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
       if (ctrl) root.startEditSelected()
-      else root.copySelected("password")
+      else root.copySelected()
       event.accepted = true
     }
   }
@@ -496,20 +538,67 @@ Item {
   }
 
   function currentId() {
+    var row = currentEntry()
+    return row ? String(row.id || "") : ""
+  }
+
+  function currentEntry() {
     if (root.selectedId) {
       for (var i = 0; i < displayModel.count; i++) {
-        if (String(displayModel.get(i).id || "") === root.selectedId)
-          return root.selectedId
+        var match = displayModel.get(i)
+        if (match && String(match.id || "") === root.selectedId) return match
       }
     }
-    if (selectedIndex < 0 || selectedIndex >= displayModel.count) return ""
-    return String(displayModel.get(selectedIndex).id || "")
+    if (selectedIndex < 0 || selectedIndex >= displayModel.count) return null
+    return displayModel.get(selectedIndex)
+  }
+
+  function notePreviewFor(id) {
+    var key = String(id || "")
+    if (!key) return ""
+    var value = root.notePreview[key]
+    return value ? String(value) : ""
+  }
+
+  function peekNotes(id) {
+    var key = String(id || "")
+    if (!key || !vault || typeof vault.getEntry !== "function") return
+    if (Object.prototype.hasOwnProperty.call(root.notePreview, key)) return
+    vault.getEntry(key, function(entry) {
+      var next = {}
+      for (var k in root.notePreview) next[k] = root.notePreview[k]
+      next[key] = String(entry && entry.notes ? entry.notes : "").trim()
+      root.notePreview = next
+    }, true)
+  }
+
+  function forgetNotePreview(id) {
+    var key = String(id || "")
+    if (!key || !Object.prototype.hasOwnProperty.call(root.notePreview, key)) return
+    var next = {}
+    for (var k in root.notePreview) if (k !== key) next[k] = root.notePreview[k]
+    root.notePreview = next
   }
 
   function copySelected(field) {
-    var id = currentId()
-    if (!id || !vault) return
-    vault.copyField(id, field || "password")
+    root.copyFieldFor(currentEntry(), field)
+  }
+
+  function copyFieldFor(entry, field) {
+    if (!entry || !vault) return
+    var id = String(entry.id || entry.entry_id || "")
+    if (!id) return
+    var f = String(field || "") || Vault.primaryCopyField(entry)
+    if (!f) {
+      if (typeof vault.toast === "function") vault.toast("Nothing to copy")
+      return
+    }
+    if (f === "totp") {
+      if (typeof vault.totp === "function") vault.totp(id)
+      else vault.copyField(id, "totp")
+      return
+    }
+    vault.copyField(id, f)
   }
 
   function setInvalid(fieldId, message) {
@@ -590,6 +679,7 @@ Item {
 
   function saveEntryNow() {
     if (!vault) return
+    root.forgetNotePreview(root.composeId)
     vault.upsertEntry({
       id: root.composeId,
       name: root.composeName,
@@ -636,6 +726,7 @@ Item {
   }
 
   onEntriesRevisionChanged: rebuildDisplay()
+  onUnlockedChanged: if (!root.unlocked) root.notePreview = ({})
   onFoldersRevisionChanged: rebuildDisplay()
   onFilterTextChanged: if (root.screen === "search") rebuildDisplay()
   onFolderFilterChanged: if (root.screen === "search") rebuildDisplay()
@@ -646,75 +737,46 @@ Item {
 
   ListModel { id: displayModel }
 
-  PanelWindow {
+  KeyboardPanel {
     id: panel
-    visible: root.opened
-    anchors { top: true; bottom: true; left: true; right: true }
-    color: "transparent"
-    WlrLayershell.namespace: "omarchy-aegis"
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
-    exclusionMode: ExclusionMode.Ignore
+    anchorItem: root.anchorItem
+    owner: root.barIdentity
+    bar: root.bar
+    open: root.opened
+    focusTarget: keyCatcher
+    contentWidth: panel.fittedContentWidth(root.cardWidth)
+    contentHeight: panel.fittedContentHeight(root.cardHeight, Style.space(680))
 
-    Rectangle {
+    Item {
+      id: keyCatcher
       anchors.fill: parent
-      color: root.scrim
-    }
+      focus: true
+      Keys.priority: Keys.BeforeItem
+      Keys.onPressed: function(event) { root.routeKeys(event) }
 
-    MouseArea {
-      anchors.fill: parent
-      onClicked: root.dismiss()
-    }
-
-    BorderSurface {
-      id: card
-      width: root.cardWidth
-      height: root.cardHeight
-      radius: root.cornerRadius
-      anchors.centerIn: parent
-      color: root.background
-      borderSpec: root.borderSpec
-      padding: root.contentMargin
-
-      MouseArea { anchors.fill: parent; onClicked: {} }
-
-      Item {
-        id: keyCatcher
-        anchors.fill: parent
-        focus: true
-        Keys.priority: Keys.BeforeItem
-        Keys.onPressed: function(event) { root.routeKeys(event) }
-
-        Shortcut { sequence: "Escape"; enabled: root.opened; onActivated: root.handleEscape() }
-        Shortcut { sequence: "Ctrl+N"; enabled: root.opened && root.screen === "search"; onActivated: root.startNewEntry() }
-        Shortcut { sequence: "Ctrl+E"; enabled: root.opened && root.screen === "search"; onActivated: root.startEditSelected() }
-        Shortcut { sequence: "Ctrl+Return"; enabled: root.opened && root.screen === "search"; onActivated: root.startEditSelected() }
-        Shortcut { sequence: "Ctrl+U"; enabled: root.opened && root.screen === "search"; onActivated: root.copySelected("username") }
-        Shortcut { sequence: "Ctrl+T"; enabled: root.opened && root.screen === "search"; onActivated: root.copySelected("totp") }
-        Shortcut { sequence: "Ctrl+L"; enabled: root.opened && root.unlocked; onActivated: if (vault) vault.lock() }
-        Shortcut { sequence: "Ctrl+Shift+E"; enabled: root.opened && root.screen === "search"; onActivated: { root.mode = "backup"; root.backupImport = false } }
-        Shortcut { sequence: "Ctrl+Shift+I"; enabled: root.opened && root.screen === "search"; onActivated: { root.mode = "backup"; root.backupImport = true } }
-        Shortcut { sequence: "Ctrl+S"; enabled: root.opened && root.screen === "compose"; onActivated: root.submitCompose() }
-        Shortcut { sequence: "Ctrl+G"; enabled: root.opened && root.screen === "compose"; onActivated: root.generateComposePassword() }
-        Shortcut { sequence: "Ctrl+D"; enabled: root.opened && root.screen === "compose" && root.editing; onActivated: root.requestDelete() }
-        Shortcut { sequence: "F1"; enabled: root.opened; onActivated: root.openAbout() }
-      }
+      Shortcut { sequence: "Escape"; enabled: root.opened; onActivated: root.handleEscape() }
+      Shortcut { sequence: "Ctrl+N"; enabled: root.opened && root.screen === "search"; onActivated: root.startNewEntry() }
+      Shortcut { sequence: "Ctrl+E"; enabled: root.opened && root.screen === "search"; onActivated: root.startEditSelected() }
+      Shortcut { sequence: "Ctrl+Return"; enabled: root.opened && root.screen === "search"; onActivated: root.startEditSelected() }
+      Shortcut { sequence: "Ctrl+U"; enabled: root.opened && root.screen === "search"; onActivated: root.copySelected("username") }
+      Shortcut { sequence: "Ctrl+T"; enabled: root.opened && root.screen === "search"; onActivated: root.copySelected("totp") }
+      Shortcut { sequence: "Ctrl+L"; enabled: root.opened && root.unlocked; onActivated: if (vault) vault.lock() }
+      Shortcut { sequence: "Ctrl+Shift+E"; enabled: root.opened && root.screen === "search"; onActivated: { root.mode = "backup"; root.backupImport = false } }
+      Shortcut { sequence: "Ctrl+Shift+I"; enabled: root.opened && root.screen === "search"; onActivated: { root.mode = "backup"; root.backupImport = true } }
+      Shortcut { sequence: "Ctrl+S"; enabled: root.opened && root.screen === "compose"; onActivated: root.submitCompose() }
+      Shortcut { sequence: "Ctrl+G"; enabled: root.opened && root.screen === "compose"; onActivated: root.generateComposePassword() }
+      Shortcut { sequence: "Ctrl+D"; enabled: root.opened && root.screen === "compose" && root.editing; onActivated: root.requestDelete() }
+      Shortcut { sequence: "F1"; enabled: root.opened; onActivated: root.openAbout() }
 
       ColumnLayout {
         id: cardLayout
         anchors.fill: parent
-        anchors.topMargin: card.contentTopInset
-        anchors.rightMargin: card.contentRightInset
-        anchors.bottomMargin: card.contentBottomInset
-        anchors.leftMargin: card.contentLeftInset
         spacing: root.contentSpacing
 
-        Row {
+        RowLayout {
           id: headerRow
           Layout.fillWidth: true
           Layout.preferredHeight: root.headerHeight
-          width: parent.width
-          height: root.headerHeight
           spacing: Style.space(10)
 
           AegisIcon {
@@ -722,14 +784,14 @@ Item {
             iconSize: Style.font.heading
             color: root.foreground
             opacity: root.unlocked ? 1.0 : 0.7
-            anchors.verticalCenter: parent.verticalCenter
+            Layout.alignment: Qt.AlignVCenter
           }
 
           Column {
             visible: !root.gateScreen
-            width: parent.width - Style.space(280)
+            Layout.fillWidth: true
+            Layout.alignment: Qt.AlignVCenter
             spacing: Style.space(2)
-            anchors.verticalCenter: parent.verticalCenter
 
             Text {
               textFormat: Text.PlainText
@@ -753,6 +815,12 @@ Item {
             }
           }
 
+          Item {
+            visible: root.gateScreen
+            Layout.fillWidth: true
+            height: 1
+          }
+
           Button {
             visible: root.screen === "search"
             text: "New"
@@ -760,7 +828,7 @@ Item {
             accent: root.accent
             bordered: true
             focusable: true
-            anchors.verticalCenter: parent.verticalCenter
+            Layout.alignment: Qt.AlignVCenter
             onClicked: root.startNewEntry()
           }
 
@@ -770,7 +838,7 @@ Item {
             foreground: root.foreground
             accent: root.accent
             focusable: true
-            anchors.verticalCenter: parent.verticalCenter
+            Layout.alignment: Qt.AlignVCenter
             onClicked: { root.mode = "backup"; root.backupImport = false }
           }
 
@@ -780,14 +848,8 @@ Item {
             foreground: root.foreground
             accent: root.accent
             focusable: true
-            anchors.verticalCenter: parent.verticalCenter
+            Layout.alignment: Qt.AlignVCenter
             onClicked: if (vault) vault.lock()
-          }
-
-          Item {
-            visible: root.gateScreen
-            width: Math.max(0, headerRow.width - aboutButton.implicitWidth)
-            height: 1
           }
 
           Button {
@@ -797,7 +859,7 @@ Item {
             foreground: root.foreground
             accent: root.accent
             focusable: true
-            anchors.verticalCenter: parent.verticalCenter
+            Layout.alignment: Qt.AlignVCenter
             onClicked: root.openAbout()
           }
         }
@@ -1032,7 +1094,7 @@ Item {
             Keys.priority: Keys.BeforeItem
             Keys.onPressed: function(event) { root.routeKeys(event) }
             onTextChanged: root.filterText = text
-            onAccepted: root.copySelected("password")
+            onAccepted: root.copySelected()
           }
 
           Flow {
@@ -1128,11 +1190,14 @@ Item {
               id: row
               required property int index
               required property string name
+              required property string entry_id
               required property string username
               required property string url
               required property string folder_id
               required property bool has_totp
               required property bool has_password
+              required property bool has_notes
+              required property var updated_at
 
               readonly property bool hasCursor: root.cursorActive && index === root.selectedIndex
               readonly property bool hoveredRow: rowHover.hovered
@@ -1157,7 +1222,7 @@ Item {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: {
                   root.commitSelection(row.index)
-                  root.copySelected("password")
+                  root.copySelected()
                 }
                 onDoubleClicked: {
                   root.commitSelection(row.index)
@@ -1173,10 +1238,12 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: Style.space(2)
 
-                Row {
+                RowLayout {
                   width: parent.width
-                  spacing: Style.space(8)
+                  spacing: Style.space(6)
+
                   Text {
+                    Layout.fillWidth: true
                     textFormat: Text.PlainText
                     text: row.name
                     color: row.hasCursor ? root.selectedText : root.foreground
@@ -1184,16 +1251,102 @@ Item {
                     font.pixelSize: Style.font.body
                     font.bold: true
                     elide: Text.ElideRight
-                    width: parent.width - Style.space(50)
+                  }
+                  Repeater {
+                    model: [
+                      { key: "password", label: "PASS", show: row.has_password, idle: "Copy password" },
+                      { key: "totp", label: "TOTP", show: row.has_totp, idle: "Copy TOTP" }
+                    ]
+                    Item {
+                      id: chip
+                      visible: modelData.show
+                      z: 6
+                      Layout.alignment: Qt.AlignVCenter
+                      implicitWidth: chipLabel.implicitWidth
+                      implicitHeight: chipLabel.implicitHeight
+                      property string copiedHint: ""
+
+                      Timer {
+                        id: copiedClear
+                        interval: 2500
+                        onTriggered: chip.copiedHint = ""
+                      }
+
+                      Text {
+                        id: chipLabel
+                        anchors.centerIn: parent
+                        textFormat: Text.PlainText
+                        text: modelData.label
+                        color: row.hasCursor ? root.selectedText : root.foreground
+                        opacity: chipMouse.containsMouse || chip.copiedHint !== "" ? 1.0 : 0.7
+                        font.family: root.fontFamily
+                        font.pixelSize: Style.font.caption
+                        font.underline: chipMouse.containsMouse || chip.copiedHint !== ""
+                      }
+
+                      MouseArea {
+                        id: chipMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        preventStealing: true
+                        onClicked: function(mouse) {
+                          mouse.accepted = true
+                          root.commitSelection(row.index)
+                          chip.copiedHint = modelData.key === "totp" ? "Copying TOTP…" : Vault.copyToast("password")
+                          copiedClear.restart()
+                          root.copyFieldFor(displayModel.get(row.index), modelData.key)
+                        }
+                      }
+
+                      PanelToolTip {
+                        visible: chipMouse.containsMouse || chip.copiedHint !== ""
+                        delay: chip.copiedHint !== "" ? 0 : 280
+                        timeout: 0
+                        text: chip.copiedHint !== ""
+                          ? (root.toastMessage !== "" ? root.toastMessage : chip.copiedHint)
+                          : modelData.idle
+                      }
+                    }
                   }
                   Text {
-                    visible: row.has_totp
+                    visible: row.has_notes
                     textFormat: Text.PlainText
-                    text: "TOTP"
+                    text: "NOTE"
                     color: row.hasCursor ? root.selectedText : root.foreground
-                    opacity: 0.7
+                    opacity: noteHover.hovered ? 1.0 : 0.7
                     font.family: root.fontFamily
                     font.pixelSize: Style.font.caption
+                    font.underline: noteHover.hovered
+                    HoverHandler {
+                      id: noteHover
+                      onHoveredChanged: if (hovered) root.peekNotes(row.entry_id)
+                    }
+                    Controls.ToolTip {
+                      visible: noteHover.hovered && root.notePreviewFor(row.entry_id) !== ""
+                      delay: 280
+                      timeout: 0
+                      text: root.notePreviewFor(row.entry_id)
+                      padding: 0
+                      background: BorderSurface {
+                        color: Color.tooltip.background
+                        borderSpec: Border.localOrSurfaceSpec("tooltip", "border", Color.tooltip.border, Color.tooltip.border, Style.normalBorderWidth)
+                        radius: Style.cornerRadius
+                      }
+                      contentItem: Text {
+                        textFormat: Text.PlainText
+                        text: root.notePreviewFor(row.entry_id)
+                        wrapMode: Text.Wrap
+                        width: Math.min(implicitWidth, Style.space(280))
+                        color: Color.tooltip.text
+                        font.family: root.fontFamily
+                        font.pixelSize: Style.font.caption
+                        leftPadding: Style.spacing.controlPaddingX
+                        rightPadding: Style.spacing.controlPaddingX
+                        topPadding: Style.spacing.controlPaddingY
+                        bottomPadding: Style.spacing.controlPaddingY
+                      }
+                    }
                   }
                 }
                 Text {
@@ -1204,6 +1357,8 @@ Item {
                     if (row.folderLabel) bits.push(row.folderLabel)
                     if (row.username) bits.push(row.username)
                     if (row.url) bits.push(row.url)
+                    var edited = Vault.formatEdited(row.updated_at)
+                    if (edited) bits.push(edited)
                     return bits.join("  ·  ")
                   }
                   color: row.hasCursor ? root.selectedText : root.foreground
@@ -1595,34 +1750,6 @@ Item {
             width: aboutPage.width - Style.space(12)
             spacing: Style.space(14)
 
-            Row {
-              spacing: Style.space(12)
-              AegisIcon {
-                iconSize: Style.space(40)
-                color: root.foreground
-                anchors.verticalCenter: parent.verticalCenter
-              }
-              Column {
-                spacing: Style.space(2)
-                anchors.verticalCenter: parent.verticalCenter
-                Text {
-                  textFormat: Text.PlainText
-                  text: "omarchy-aegis"
-                  color: root.foreground
-                  font.family: root.fontFamily
-                  font.pixelSize: Style.font.heading
-                }
-                Text {
-                  textFormat: Text.PlainText
-                  text: "v" + root.pluginVersion + " beta" + (root.pluginCommit ? " · " + root.pluginCommit : "")
-                  color: root.foreground
-                  opacity: 0.65
-                  font.family: root.fontFamily
-                  font.pixelSize: Style.font.caption
-                }
-              }
-            }
-
             BorderSurface {
               width: parent.width
               implicitHeight: betaCopy.implicitHeight + Style.space(20)
@@ -1678,7 +1805,7 @@ Item {
               width: parent.width
               textFormat: Text.PlainText
               wrapMode: Text.Wrap
-              text: "Copy a vault to another PC or the browser with Backup → Export (.aegis). The folder on disk is a sealed local store, not a portable backup."
+              text: "Vault files live in " + root.vaultDataDir + ". That folder is a sealed live store for this machine — copy it and the other side cannot import it as a backup, and you can split this vault’s identity. Backup → Export writes a .aegis file the web app understands."
               color: root.foreground
               opacity: 0.85
               font.family: root.fontFamily
@@ -1759,28 +1886,11 @@ Item {
             font.pixelSize: Style.font.caption
           }
           Text {
-            id: versionLink
-            width: parent.width
-            textFormat: Text.PlainText
-            text: "v" + root.pluginVersion + (root.pluginCommit ? " · " + root.pluginCommit : "") + "  ·  report an issue"
-            color: versionHover.hovered ? root.accent : root.foreground
-            opacity: versionHover.hovered ? 0.9 : 0.4
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
-            font.underline: true
-
-            HoverHandler { id: versionHover }
-            MouseArea {
-              anchors.fill: parent
-              cursorShape: Qt.PointingHandCursor
-              onClicked: root.openIssues()
-            }
-          }
-          Text {
+            visible: root.toastMessage === "" && root.currentTip !== ""
             width: parent.width
             textFormat: Text.PlainText
             wrapMode: Text.Wrap
-            text: root.vaultDataDir + "  ·  sealed local store — Backup → Export to copy"
+            text: "Tip  ·  " + root.currentTip
             color: root.foreground
             opacity: 0.4
             font.family: root.fontFamily

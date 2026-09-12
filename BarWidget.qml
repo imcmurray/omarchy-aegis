@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import qs.Ui
 import qs.Commons
 
@@ -17,6 +18,10 @@ BarWidget {
   readonly property bool busy: vault ? vault.busy === true : false
 
   readonly property color iconColor: bar ? bar.foreground : Color.foreground
+  readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
+  readonly property bool popoutSwitchClosing: panelLoader.item ? panelLoader.item.popoutSwitchClosing === true : false
+  readonly property real openPanelIndicatorWidth: Style.bar.iconCanvas
+  readonly property real openPanelIndicatorHeight: Style.bar.iconCanvas
 
   readonly property string tooltip: {
     if (!vault || !vault.ready) return "omarchy-aegis"
@@ -26,12 +31,31 @@ BarWidget {
     return "omarchy-aegis · no vault"
   }
 
-  function summonOverlay() {
-    if (root.bar && root.bar.shell && typeof root.bar.shell.toggle === "function") {
-      root.bar.shell.toggle(root.moduleName, "{}")
-      return
-    }
-    Quickshell.execDetached(["/usr/bin/omarchy-shell", "shell", "toggle", root.moduleName, "{}"])
+  function injectPanel() {
+    var target = panelLoader.item
+    if (!target) return
+    if ("bar" in target) target.bar = root.bar
+    if ("settings" in target) target.settings = root.settings
+    if ("anchorItem" in target) target.anchorItem = button
+    if ("hostWidget" in target) target.hostWidget = root
+    if ("shell" in target && root.bar) target.shell = root.bar.shell
+    if ("service" in target) target.service = root.vault
+  }
+
+  function open() {
+    if (panelLoader.item) panelLoader.item.open("{}")
+  }
+
+  function close() {
+    if (panelLoader.item) panelLoader.item.close()
+  }
+
+  function toggle() {
+    if (panelLoader.item) panelLoader.item.toggle()
+  }
+
+  function closeForPopoutSwitch() {
+    if (panelLoader.item) panelLoader.item.closeForPopoutSwitch()
   }
 
   function lockVault() {
@@ -40,6 +64,30 @@ BarWidget {
 
   implicitWidth: button.implicitWidth
   implicitHeight: button.implicitHeight
+
+  onBarChanged: injectPanel()
+  onSettingsChanged: injectPanel()
+  onVaultChanged: injectPanel()
+
+  Loader {
+    id: panelLoader
+    active: true
+    source: Qt.resolvedUrl("Panel.qml")
+    visible: false
+    onLoaded: {
+      root.injectPanel()
+      Qt.callLater(root.injectPanel)
+    }
+  }
+
+  IpcHandler {
+    target: root.moduleName
+    function open(): void { root.open() }
+    function close(): void { root.close() }
+    function show(): void { root.open() }
+    function hide(): void { root.close() }
+    function toggle(): void { root.toggle() }
+  }
 
   BarIconButton {
     id: button
@@ -50,7 +98,7 @@ BarWidget {
       Item {
         AegisIcon {
           anchors.centerIn: parent
-          iconSize: parent.width
+          iconSize: Style.bar.iconFont
           color: root.iconColor
           opacity: !root.cliPresent ? 0.4 : (root.unlocked ? 1.0 : 0.55)
         }
@@ -58,7 +106,7 @@ BarWidget {
     }
     onPressed: function(buttonCode) {
       if (buttonCode === Qt.RightButton) root.lockVault()
-      else root.summonOverlay()
+      else root.toggle()
     }
   }
 }

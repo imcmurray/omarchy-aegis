@@ -496,7 +496,7 @@ Item {
     })
   }
 
-  function getEntry(id, onEntry) {
+  function getEntry(id, onEntry, quiet) {
     enqueue({
       kind: "get",
       id: String(id || ""),
@@ -504,6 +504,7 @@ Item {
         var obj = Vault.resultFromOutput(stdout, stderr, code)
         var entry = Vault.asEntry(obj)
         if (entry && typeof onEntry === "function") onEntry(entry)
+        else if (quiet) return
         else if (Vault.asError(obj)) setError(Vault.asError(obj).message)
         else setError("could not load entry")
       }
