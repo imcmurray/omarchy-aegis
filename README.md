@@ -12,19 +12,27 @@ Omarchy overlay  →  aegis  →  aegis agent  →  ~/.local/share/aegis/secrets
 
 Unlock once. Search and copy hit the running agent. Argon2id (≥ 64 MiB) is not paid per keystroke.
 
-**Beta v0.5.1.** Built for Omarchy Quattro. Feedback welcome — **About** (or F1) in the overlay, or [open an issue](https://github.com/imcmurray/omarchy-aegis/issues/new/choose).
+**Beta v0.6.0.** Built for Omarchy Quattro. Feedback welcome — **About** (or F1) in the overlay, or [open an issue](https://github.com/imcmurray/omarchy-aegis/issues/new/choose).
 
 ## Install
 
-Requires [`aegis`](https://github.com/imcmurray/Aegis) on `PATH` (`aegis --protocol-version` must print `1`).
+Requires the **attested** [`aegis`](https://github.com/imcmurray/Aegis) linux-x86_64 CLI from the [v2.0.0-rc.1.1](https://github.com/imcmurray/Aegis/releases/tag/v2.0.0-rc.1.1) GitHub Release. The plugin opens candidate paths with `O_NOFOLLOW`, hashes the descriptor, and refuses anything whose SHA-256 is not in `cli.sha256`. Protocol version is a sanity check, not trust.
 
 **No sudo or pkexec is required.** This plugin does not install packages or edit Hyprland/Omarchy config unless you add the optional keybind below.
 
-Pin the CLI to [v2.0.0-rc.1.1](https://github.com/imcmurray/Aegis/releases/tag/v2.0.0-rc.1.1) (`cd99293…`, includes `import --replace`). Detached checkout and build are one `&&` chain so a failed pin cannot fall through to `cargo install`:
-
 ```bash
-git clone https://github.com/imcmurray/Aegis.git && cd Aegis && git checkout --detach cd99293f90312a53d6f45366db05fb1b79e341c6 && cargo install --path tools/cli && aegis --protocol-version
+tag=v2.0.0-rc.1.1
+base=https://github.com/imcmurray/Aegis/releases/download/$tag
+dir="${XDG_RUNTIME_DIR:?}/aegis-cli-$$"
+mkdir -p "$dir"
+curl -fsSL -o "$dir/aegis-x86_64-unknown-linux-gnu" "$base/aegis-x86_64-unknown-linux-gnu"
+echo "05d6b776bac89cb9301231bcc51b579cc616811d876a32771861d06cb543b042  aegis-x86_64-unknown-linux-gnu" | (cd "$dir" && sha256sum -c -)
+install -D -m 0755 "$dir/aegis-x86_64-unknown-linux-gnu" "$HOME/.local/bin/aegis"
+rm -rf "$dir"
+"$HOME/.local/bin/aegis" --protocol-version
 ```
+
+The overlay **Copy install** button fills in the digest for you.
 
 Then:
 
@@ -44,7 +52,7 @@ Optional keybind — you add this yourself; the plugin never writes `bindings.lu
 o.bind("SUPER + SHIFT + P", "omarchy-aegis", "omarchy-shell shell summon ianm.aegis '{}'")
 ```
 
-The plugin looks for `aegis` on `PATH`, then `~/.cargo/bin/aegis`, then `~/.local/bin/aegis`. Every command runs as `env -u AEGIS_KDF …`. If the CLI is missing, the overlay shows the install commands, a copy button, and **Recheck**.
+The plugin looks for an attested `aegis` at `/usr/bin/aegis`, `/usr/local/bin/aegis`, then `~/.local/bin/aegis`. Each candidate is opened from `/` with no-follow descriptors and accepted only if the fd SHA-256 matches `cli.sha256`. Commands run through `bin/aegis-run` in a closed environment (`PATH=/usr/bin:/bin`), with a deadline, output cap, and process-group TERM/KILL. If the CLI is missing or the digest does not match, the overlay shows the install commands, a copy button, and **Recheck**.
 
 ## What you get
 
@@ -86,9 +94,11 @@ aegis agent stop
 
 ## Security
 
-- Passphrases go through `--passphrase-file` (mode `0600` under `$XDG_RUNTIME_DIR`), never argv or env
+- The CLI is an attested GitHub Release artifact. Runtime trust is the SHA-256 of an `O_NOFOLLOW` fd, not `PATH` and not `--protocol-version`
+- Passphrases go through `--passphrase-file` as `/proc/self/fd/N` into a file created with `O_EXCL|O_NOFOLLOW` in a held 0700 `$XDG_RUNTIME_DIR/aegis-omarchy` directory (walked from `/`). Never argv or env
+- Helpers are `/usr/bin/python3`, `/usr/bin/env -i`, `/usr/bin/setpriv`; `gdbus` / `dbus-monitor` / `omarchy-hyprland-session-locked` are root-owned `/usr/bin` fds
 - Search lists metadata only — no passwords in the QML model
-- Clipboard copy is `aegis copy`, not `printf secret \| wl-copy`
+- Clipboard copy is `aegis copy`, not `printf secret | wl-copy`
 - Plugins run unsandboxed inside `omarchy-shell`. Read the repo before `--enable`
 
 Portable copy of a vault is **Backup → Export** (a `.aegis` file). `~/.local/share/aegis` is the sealed local store, not a file you copy to another PC.

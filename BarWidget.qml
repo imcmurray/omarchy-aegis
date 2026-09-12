@@ -31,7 +31,7 @@ BarWidget {
       root.bar.shell.toggle(root.moduleName, "{}")
       return
     }
-    Quickshell.execDetached(["omarchy-shell", "shell", "toggle", root.moduleName, "{}"])
+    Quickshell.execDetached(["/usr/bin/omarchy-shell", "shell", "toggle", root.moduleName, "{}"])
   }
 
   function lockVault() {

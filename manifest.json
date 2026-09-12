@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "ianm.aegis",
   "name": "omarchy-aegis",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "author": "Ian McMurray",
   "license": "MIT",
   "description": "Search the Aegis vault and copy logins from an Omarchy overlay. Client of the native aegis CLI — no crypto in the plugin.",

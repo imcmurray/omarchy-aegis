@@ -142,6 +142,6 @@ assert.notEqual(
 )
 
 assert.match(vault.copyToast("password"), /Copied password/)
-assert.match(vault.missingCliMessage(), /cd99293f90312a53d6f45366db05fb1b79e341c6/)
+assert.match(vault.missingCliMessage(), /attested aegis CLI/)
 
 console.log("vault.test.js ok")

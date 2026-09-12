@@ -13,9 +13,10 @@ Do not put passphrases or vault exports in public issues.
 
 ## What this plugin does
 
-- Talks only to a local `aegis` binary on PATH
-- Passes passphrases through mode-0600 files under `$XDG_RUNTIME_DIR` (never argv or env)
-- Copies secrets with `aegis copy`, not `wl-copy` from QML
+- Talks only to an attested local `aegis` binary whose SHA-256 matches `cli.sha256` (descriptor-bound `O_NOFOLLOW` open, not PATH)
+- Passes passphrases through mode-0600 files created in a held `$XDG_RUNTIME_DIR/aegis-omarchy` directory fd and consumed as `/proc/self/fd/N` (never argv or env)
+- Runs the CLI in a closed environment with absolute helpers, a deadline, an output cap, and process-group TERM/KILL/reap
+- Copies secrets with `aegis copy`, not `wl-copy` from QML (the overlay install snippet is the exception, via `/usr/bin/wl-copy`)
 - Locks the vault on session lock, suspend, and logout
 
-It does not reimplement Argon2, ML-KEM, ML-DSA, or vault storage.
+It does not reimplement Argon2, ML-KEM, ML-DSA, or vault storage. It does not `cargo install` or otherwise fetch crates.

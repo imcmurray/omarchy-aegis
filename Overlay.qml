@@ -11,7 +11,6 @@ import "Vault.js" as Vault
 Item {
   id: root
 
-  property string omarchyPath: Quickshell.env("OMARCHY_PATH")
   property var shell: null
   property var manifest: null
   property var service: null
@@ -95,12 +94,23 @@ Item {
   readonly property int entriesRevision: vault ? vault.entriesRevision : 0
   readonly property int foldersRevision: vault ? vault.foldersRevision : 0
   readonly property var folderList: vault && vault.folders ? vault.folders : []
-  readonly property string pluginVersion: (manifest && manifest.version) ? String(manifest.version) : "0.5.1"
+  readonly property string pluginVersion: (manifest && manifest.version) ? String(manifest.version) : "0.6.0"
+  property string cliDigest: ""
   readonly property string repoUrl: "https://github.com/imcmurray/omarchy-aegis"
   readonly property string issuesUrl: "https://github.com/imcmurray/omarchy-aegis/issues/new/choose"
   readonly property string aegisRepoUrl: "https://github.com/imcmurray/Aegis"
   readonly property string aegisWebUrl: "https://imcmurray.github.io/Aegis/"
-  readonly property string installSnippet: "git clone https://github.com/imcmurray/Aegis.git && cd Aegis && git checkout --detach cd99293f90312a53d6f45366db05fb1b79e341c6 && cargo install --path tools/cli && aegis --protocol-version"
+  readonly property string installSnippet: {
+    var hash = root.cliDigest || "see cli.sha256"
+    return (
+      "tag=v2.0.0-rc.1.1; base=https://github.com/imcmurray/Aegis/releases/download/$tag; " +
+      "dir=${XDG_RUNTIME_DIR:?}/aegis-cli-$$; mkdir -p \"$dir\" && " +
+      "curl -fsSL -o \"$dir/aegis-x86_64-unknown-linux-gnu\" \"$base/aegis-x86_64-unknown-linux-gnu\" && " +
+      "echo " + hash + "  aegis-x86_64-unknown-linux-gnu | (cd \"$dir\" && sha256sum -c -) && " +
+      "install -D -m 0755 \"$dir/aegis-x86_64-unknown-linux-gnu\" \"$HOME/.local/bin/aegis\" && " +
+      "rm -rf \"$dir\" && \"$HOME/.local/bin/aegis\" --protocol-version"
+    )
+  }
   readonly property string vaultDataDir: {
     var data = Quickshell.env("AEGIS_DATA")
     if (data) return data
@@ -109,6 +119,8 @@ Item {
     return (Quickshell.env("HOME") || "") + "/.local/share/aegis"
   }
   readonly property string pluginDir: {
+    if (root.manifest && root.manifest.__sourceDir)
+      return String(root.manifest.__sourceDir).replace(/\/$/, "")
     var url = String(Qt.resolvedUrl(".") || "")
     if (url.indexOf("file://") === 0) {
       var path = url.substring(7)
@@ -182,7 +194,23 @@ Item {
     var u = String(url || "")
     if (!u) return
     if (typeof Qt.openUrlExternally === "function") Qt.openUrlExternally(u)
-    else Quickshell.execDetached(["xdg-open", u])
+  }
+
+  function trustedEnv(argv) {
+    var xdg = Quickshell.env("XDG_RUNTIME_DIR") || ""
+    var home = Quickshell.env("HOME") || ""
+    var wayland = Quickshell.env("WAYLAND_DISPLAY") || ""
+    var cmd = [
+      "/usr/bin/env", "-i",
+      "PATH=/usr/bin:/bin",
+      "LC_ALL=C",
+      "HOME=" + home,
+      "XDG_RUNTIME_DIR=" + xdg
+    ]
+    if (/^[A-Za-z0-9._-]+$/.test(wayland))
+      cmd.push("WAYLAND_DISPLAY=" + wayland)
+    for (var i = 0; i < argv.length; i++) cmd.push(argv[i])
+    return cmd
   }
 
   function openIssues() {
@@ -194,6 +222,7 @@ Item {
   }
 
   function copyInstallSnippet() {
+    copyInstallProc.command = root.trustedEnv(["/usr/bin/wl-copy"])
     copyInstallProc.running = true
   }
 
@@ -822,7 +851,7 @@ Item {
             wrapMode: Text.Wrap
             text: root.cliPresent
               ? ("This aegis binary is protocol " + (vault ? vault.protocolVersion : "?") + ". omarchy-aegis needs protocol 1. Update the CLI, then Recheck.")
-              : "omarchy-aegis is only the overlay. It does not install the vault. You need the native aegis CLI on PATH before you can create or unlock a vault."
+              : "omarchy-aegis is only the overlay. It does not install the vault. Install the attested linux-x86_64 aegis CLI from the Aegis GitHub Release (SHA-256 in cli.sha256) into ~/.local/bin/aegis, then Recheck."
             color: root.foreground
             font.family: root.fontFamily
             font.pixelSize: Style.font.body
@@ -833,7 +862,7 @@ Item {
             visible: !root.cliPresent
             textFormat: Text.PlainText
             wrapMode: Text.Wrap
-            text: "Rust + cargo, then:"
+            text: "Download, verify SHA-256, install to ~/.local/bin:"
             color: root.foreground
             opacity: 0.75
             font.family: root.fontFamily
@@ -1792,26 +1821,37 @@ Item {
 
   Process {
     id: copyInstallProc
-    command: ["wl-copy"]
     stdinEnabled: true
+    clearEnvironment: true
+    stdout: StdioCollector {
+      waitForEnd: false
+      onDataChanged: {
+        if (data.length > 4096) copyInstallProc.running = false
+      }
+    }
+    stderr: StdioCollector {
+      waitForEnd: false
+      onDataChanged: {
+        if (data.length > 4096) copyInstallProc.running = false
+      }
+    }
     onStarted: {
+      copyInstallWatchdog.restart()
       write(root.installSnippet)
       stdinEnabled = false
     }
     onExited: {
+      copyInstallWatchdog.stop()
       if (vault && typeof vault.toast === "function") vault.toast("Copied install commands")
     }
   }
 
-  Process {
-    id: commitProc
-    command: ["git", "-C", root.pluginDir, "rev-parse", "--short", "HEAD"]
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: {
-        var hash = String(text || "").trim()
-        if (hash && hash.length <= 16) root.pluginCommit = hash
-      }
+  Timer {
+    id: copyInstallWatchdog
+    interval: 5000
+    repeat: false
+    onTriggered: {
+      if (copyInstallProc.running) copyInstallProc.signal(15)
     }
   }
 
@@ -1820,11 +1860,25 @@ Item {
     path: root.pluginDir + "/COMMIT"
     printErrors: false
     onLoaded: {
-      if (root.pluginCommit) return
       var hash = String(text() || "").trim()
       if (hash && hash.length <= 16) root.pluginCommit = hash
     }
   }
 
-  Component.onCompleted: commitProc.running = true
+  FileView {
+    path: root.pluginDir + "/cli.sha256"
+    printErrors: false
+    onLoaded: {
+      var lines = String(text() || "").split("\n")
+      for (var i = 0; i < lines.length; i++) {
+        var line = String(lines[i] || "").trim()
+        if (!line || line.charAt(0) === "#") continue
+        var digest = line.split(/\s+/)[0]
+        if (/^[0-9a-f]{64}$/.test(digest)) {
+          root.cliDigest = digest
+          break
+        }
+      }
+    }
+  }
 }

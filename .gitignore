@@ -1,4 +1,2 @@
-*~
-*.qmlc
-.DS_Store
-COMMIT
+__pycache__/
+*.pyc

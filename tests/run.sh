@@ -2,7 +2,7 @@
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 node "$root/tests/vault.test.js"
-bash "$root/tests/passfile-test.sh"
+/usr/bin/python3 "$root/tests/aegis-run-test.py"
 bash "$root/tests/session-watch-test.sh"
 bash "$root/tests/import-roundtrip.sh"
 

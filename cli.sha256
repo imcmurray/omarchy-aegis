@@ -1,0 +1,7 @@
+# Attested linux-x86_64 aegis CLI (Aegis v2.0.0-rc.1.1).
+# GitHub Actions --locked build, rustc 1.98.1, provenance attested.
+# Workflow: https://github.com/imcmurray/Aegis/actions/runs/34682543754
+# Release: https://github.com/imcmurray/Aegis/releases/tag/v2.0.0-rc.1.1
+# One SHA-256 hex digest per line. The plugin accepts a candidate only
+# when the O_NOFOLLOW fd hashes to one of these values.
+05d6b776bac89cb9301231bcc51b579cc616811d876a32771861d06cb543b042  aegis-x86_64-unknown-linux-gnu

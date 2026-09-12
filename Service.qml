@@ -9,7 +9,6 @@ Item {
 
   property var shell: null
   property var manifest: null
-  property string omarchyPath: Quickshell.env("OMARCHY_PATH") || ""
 
   property string cliPath: ""
   property int protocolVersion: -1
@@ -36,12 +35,11 @@ Item {
 
   property var jobQueue: []
   property var activeJob: null
-  property var passRoles: []
-  property int passIndex: 0
-  property var passPaths: ({})
 
   readonly property string pluginId: "ianm.aegis"
-  readonly property string home: Quickshell.env("HOME") || ""
+  readonly property int maxOutputBytes: 1048576
+  readonly property int timeoutDefaultMs: 15000
+  readonly property int timeoutKdfMs: 120000
 
   function pluginFile(name) {
     var url = String(Qt.resolvedUrl(name) || "")
@@ -53,14 +51,41 @@ Item {
     return url
   }
 
-  function passfileBin() {
-    return pluginFile("bin/aegis-passfile")
+  function pluginDir() {
+    if (root.manifest && root.manifest.__sourceDir)
+      return String(root.manifest.__sourceDir).replace(/\/$/, "")
+    return pluginFile(".").replace(/\/$/, "")
   }
 
-  function envCmd(args) {
-    var cmd = ["env", "-u", "AEGIS_KDF"]
+  function trustedEnv(argv) {
+    var xdg = Quickshell.env("XDG_RUNTIME_DIR") || ""
+    var home = Quickshell.env("HOME") || ""
+    var wayland = Quickshell.env("WAYLAND_DISPLAY") || ""
+    var cmd = [
+      "/usr/bin/setpriv", "--pdeathsig", "TERM", "--nnp", "--",
+      "/usr/bin/env", "-i",
+      "PATH=/usr/bin:/bin",
+      "LC_ALL=C",
+      "HOME=" + home,
+      "XDG_RUNTIME_DIR=" + xdg,
+      "XDG_SESSION_TYPE=wayland"
+    ]
+    if (/^[A-Za-z0-9._-]+$/.test(wayland))
+      cmd.push("WAYLAND_DISPLAY=" + wayland)
+    for (var i = 0; i < argv.length; i++) cmd.push(argv[i])
+    return cmd
+  }
+
+  function runner(args) {
+    var cmd = trustedEnv(["/usr/bin/python3", pluginDir() + "/bin/aegis-run"])
     for (var i = 0; i < args.length; i++) cmd.push(args[i])
     return cmd
+  }
+
+  function jobTimeoutMs(kind) {
+    if (kind === "unlock" || kind === "create" || kind === "import" || kind === "export")
+      return root.timeoutKdfMs
+    return root.timeoutDefaultMs
   }
 
   function setError(message) {
@@ -82,7 +107,7 @@ Item {
 
   function pump() {
     if (root.activeJob) return
-    if (proc.running || passProc.running || rmProc.running) return
+    if (proc.running) return
     if (root.jobQueue.length === 0) return
     var rest = root.jobQueue.slice()
     var job = rest.shift()
@@ -91,113 +116,102 @@ Item {
     root.busy = true
     root.busyKind = job.kind || ""
     if (job.clearError !== false) root.errorMessage = ""
-    root.passRoles = job.passphrases || []
-    root.passIndex = 0
-    root.passPaths = ({})
-    if (root.passRoles.length > 0) startPassfile()
-    else startAegis()
+    startRun()
   }
 
   function finishJob(ok, stdout, stderr, code) {
     var job = root.activeJob
-    var paths = root.passPaths
     root.activeJob = null
-    root.passRoles = []
-    root.passIndex = 0
-    root.passPaths = ({})
     root.busy = root.jobQueue.length > 0
     if (root.jobQueue.length === 0) root.busyKind = ""
-    unlinkPaths(paths)
+    jobWatchdog.stop()
+    jobKill.stop()
     if (job && typeof job.onDone === "function")
       job.onDone(ok, stdout, stderr, code)
     Qt.callLater(pump)
   }
 
-  function startPassfile() {
-    var roles = root.passRoles
-    if (root.passIndex >= roles.length) {
-      startAegis()
-      return
+  function jobStdin(job) {
+    var obj = {}
+    var roles = job.passphrases || []
+    for (var i = 0; i < roles.length; i++) {
+      obj[String(roles[i].role || "pass")] = String(roles[i].value || "")
+      roles[i].value = ""
     }
-    var item = roles[root.passIndex]
-    passProc.secret = String(item.value || "")
-    passProc.role = String(item.role || "pass")
-    item.value = ""
-    passProc.command = [passfileBin()]
-    passProc.stdinEnabled = true
-    passProc.running = true
+    if (job.stdinText) obj.rpc = String(job.stdinText)
+    return JSON.stringify(obj) + "\n"
   }
 
-  function startAegis() {
+  function abortJob() {
+    if (!proc.running) return
+    proc.signal(15)
+    jobKill.restart()
+  }
+
+  function startRun() {
     var job = root.activeJob
     if (!job) return
-    var args = jobArgs(job, root.passPaths)
-    if (!args) {
+    if (job.kind === "resolve") {
+      proc.command = runner(["resolve"])
+      proc.stdinEnabled = false
+      proc.stdinText = ""
+      jobWatchdog.interval = 8000
+      jobWatchdog.restart()
+      proc.running = true
+      return
+    }
+    var rest = jobAegisArgs(job)
+    if (!rest) {
       finishJob(false, "", "internal job error", 1)
       return
     }
-    proc.command = envCmd(args)
-    proc.stdinEnabled = !!job.stdinText
-    proc.stdinText = job.stdinText || ""
+    var timeout = jobTimeoutMs(job.kind)
+    var args = [
+      "run",
+      "--timeout-ms", String(timeout),
+      "--max-bytes", String(root.maxOutputBytes)
+    ]
+    var roles = job.passphrases || []
+    for (var i = 0; i < roles.length; i++) {
+      args.push("--role")
+      args.push(String(roles[i].role || "pass"))
+    }
+    args.push("--")
+    for (var j = 0; j < rest.length; j++) args.push(rest[j])
+    proc.command = runner(args)
+    proc.stdinText = jobStdin(job)
+    proc.stdinEnabled = true
+    jobWatchdog.interval = timeout + 2000
+    jobWatchdog.restart()
     proc.running = true
   }
 
-  function jobArgs(job, paths) {
+  function jobAegisArgs(job) {
     var kind = job.kind
-    if (kind === "resolve") {
-      return ["bash", "-c",
-        'if command -v aegis >/dev/null 2>&1; then command -v aegis; ' +
-        'elif [ -x "$HOME/.cargo/bin/aegis" ]; then printf %s "$HOME/.cargo/bin/aegis"; ' +
-        'elif [ -x "$HOME/.local/bin/aegis" ]; then printf %s "$HOME/.local/bin/aegis"; ' +
-        'else exit 1; fi']
-    }
-    var bin = root.cliPath || "aegis"
-    if (kind === "protocol") return [bin, "--protocol-version"]
-    if (kind === "status") return [bin, "--json", "status"]
+    if (kind === "protocol") return ["--protocol-version"]
+    if (kind === "status") return ["--json", "status"]
     if (kind === "search") {
       var q = String(job.query || "")
-      return q ? [bin, "--json", "search", q] : [bin, "--json", "search"]
+      return q ? ["--json", "search", q] : ["--json", "search"]
     }
-    if (kind === "lock") return [bin, "--json", "lock"]
-    if (kind === "unlock")
-      return [bin, "--json", "--passphrase-file", paths.pass, "unlock"]
-    if (kind === "create")
-      return [bin, "--json", "--passphrase-file", paths.pass, "create"]
+    if (kind === "lock") return ["--json", "lock"]
+    if (kind === "unlock") return ["--json", "unlock"]
+    if (kind === "create") return ["--json", "create"]
     if (kind === "copy")
-      return [bin, "--json", "copy", String(job.id || ""), "--field", String(job.field || "password")]
-    if (kind === "totp")
-      return [bin, "--json", "totp", String(job.id || "")]
-    if (kind === "generate") return [bin, "--json", "generate"]
-    if (kind === "get") return [bin, "--json", "get", String(job.id || "")]
-    if (kind === "folders") return [bin, "--json", "folders"]
-    if (kind === "export")
-      return [bin, "--json", "export", "--backup-passphrase-file", paths.pass, String(job.path || "")]
+      return ["--json", "copy", String(job.id || ""), "--field", String(job.field || "password")]
+    if (kind === "totp") return ["--json", "totp", String(job.id || "")]
+    if (kind === "generate") return ["--json", "generate"]
+    if (kind === "get") return ["--json", "get", String(job.id || "")]
+    if (kind === "folders") return ["--json", "folders"]
+    if (kind === "export") return ["--json", "export", String(job.path || "")]
     if (kind === "import") {
-      var imp = [bin, "--json", "import"]
+      var imp = ["--json", "import"]
       if (job.replace) imp.push("--replace")
-      imp.push(
-        "--backup-passphrase-file", paths.backup,
-        "--new-passphrase-file", paths.live,
-        String(job.path || "")
-      )
+      imp.push(String(job.path || ""))
       return imp
     }
-    if (kind === "rpc") return [bin, "rpc"]
+    if (kind === "rpc") return ["rpc"]
     return null
-  }
-
-  function unlinkPaths(paths) {
-    var list = []
-    if (paths) {
-      for (var key in paths) {
-        if (paths[key]) list.push(paths[key])
-      }
-    }
-    if (list.length === 0) return
-    var cmd = ["rm", "-f", "--"]
-    for (var i = 0; i < list.length; i++) cmd.push(list[i])
-    rmProc.command = cmd
-    rmProc.running = true
   }
 
   function applyStatus(obj) {
@@ -357,12 +371,13 @@ Item {
   function bootstrap() {
     enqueue({
       kind: "resolve",
-      onDone: function(ok, stdout) {
+      onDone: function(ok, stdout, stderr) {
         var path = String(stdout || "").trim()
         if (!ok || !path) {
           root.cliPresent = false
           root.ready = true
-          setError(Vault.missingCliMessage())
+          var detail = String(stderr || "").trim()
+          setError(detail || Vault.missingCliMessage())
           return
         }
         root.cliPath = path
@@ -570,12 +585,7 @@ Item {
 
   function startSessionWatch() {
     if (!root.cliPresent || watchProc.running) return
-    watchProc.command = [
-      "setpriv", "--pdeathsig", "TERM",
-      pluginFile("bin/aegis-session-watch"),
-      root.cliPath || "aegis",
-      root.omarchyPath || "/usr/share/omarchy"
-    ]
+    watchProc.command = runner(["watch", "--lock-timeout-ms", "10000"])
     watchProc.running = true
   }
 
@@ -595,38 +605,24 @@ Item {
   }
 
   Process {
-    id: passProc
-    property string secret: ""
-    property string role: "pass"
-    stdinEnabled: true
-    stdout: StdioCollector { id: passOut; waitForEnd: true }
-    stderr: StdioCollector { id: passErr; waitForEnd: true }
-    onStarted: {
-      write(secret)
-      secret = ""
-      stdinEnabled = false
-    }
-    onExited: function(exitCode) {
-      var path = String(passOut.text || "").trim()
-      if (exitCode !== 0 || !path) {
-        finishJob(false, "", String(passErr.text || "passfile failed"), exitCode)
-        return
-      }
-      var next = {}
-      for (var key in root.passPaths) next[key] = root.passPaths[key]
-      next[role] = path
-      root.passPaths = next
-      root.passIndex = root.passIndex + 1
-      startPassfile()
-    }
-  }
-
-  Process {
     id: proc
     property string stdinText: ""
     stdinEnabled: false
-    stdout: StdioCollector { id: procOut; waitForEnd: true }
-    stderr: StdioCollector { id: procErr; waitForEnd: true }
+    clearEnvironment: true
+    stdout: StdioCollector {
+      id: procOut
+      waitForEnd: false
+      onDataChanged: {
+        if (data.length > root.maxOutputBytes) root.abortJob()
+      }
+    }
+    stderr: StdioCollector {
+      id: procErr
+      waitForEnd: false
+      onDataChanged: {
+        if (data.length > root.maxOutputBytes) root.abortJob()
+      }
+    }
     onStarted: {
       if (stdinText) {
         write(stdinText)
@@ -635,26 +631,51 @@ Item {
       stdinEnabled = false
     }
     onExited: function(exitCode) {
+      jobKill.stop()
       finishJob(exitCode === 0, String(procOut.text || ""), String(procErr.text || ""), exitCode)
     }
   }
 
   Process {
-    id: rmProc
-    stdout: StdioCollector { waitForEnd: true }
-    stderr: StdioCollector { waitForEnd: true }
-    onExited: Qt.callLater(pump)
-  }
-
-  Process {
     id: watchProc
+    property int liveLines: 0
+    property bool overflow: false
+    clearEnvironment: true
     stdout: SplitParser {
       onRead: function(line) {
-        if (String(line || "").trim() === "LOCK") root.onSessionLockSignal()
+        var text = String(line || "")
+        watchProc.liveLines += 1
+        if (text.length > 256 || watchProc.liveLines > 64) {
+          watchProc.overflow = true
+          watchProc.running = false
+          return
+        }
+        if (text.trim() === "LOCK") root.onSessionLockSignal()
       }
     }
+    onStarted: {
+      liveLines = 0
+      overflow = false
+    }
     onExited: {
+      if (watchProc.overflow) return
       if (root.cliPresent && root.protocolSupported) watchRestart.restart()
+    }
+  }
+
+  Timer {
+    id: jobWatchdog
+    interval: 17000
+    repeat: false
+    onTriggered: root.abortJob()
+  }
+
+  Timer {
+    id: jobKill
+    interval: 500
+    repeat: false
+    onTriggered: {
+      if (proc.running) proc.signal(9)
     }
   }
 

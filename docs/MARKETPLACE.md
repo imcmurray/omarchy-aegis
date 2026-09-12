@@ -33,7 +33,7 @@ _No response_
 
 ### Maintainer notes
 
-Beta v0.5.1 overlay client of the native aegis CLI (password manager). Plugin id `ianm.aegis`. Requires `aegis` on PATH. CLI install is a fail-closed `&&` chain: clone, `git checkout --detach cd99293f90312a53d6f45366db05fb1b79e341c6` (Aegis v2.0.0-rc.1.1, `import --replace`, new vault_id on restore), then `cargo install --path tools/cli`. No sudo or pkexec. Optional Hyprland bind is documented only — not installed.
+Beta v0.6.0 overlay client of the native aegis CLI (password manager). Plugin id `ianm.aegis`. Requires the attested linux-x86_64 `aegis` GitHub Release artifact for Aegis v2.0.0-rc.1.1; runtime trust is the SHA-256 in `cli.sha256` of an O_NOFOLLOW fd (not PATH, not protocol version). Helpers are absolute and run in `env -i`. Passphrase files are descriptor-created in a held 0700 runtime dir and passed as `/proc/self/fd/N`. CLI processes are process-grouped with a deadline and output cap. No sudo or pkexec. Optional Hyprland bind is documented only — not installed.
 
 ### Submission checklist
 
