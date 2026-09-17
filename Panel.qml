@@ -121,7 +121,7 @@ Panel {
   readonly property int entriesRevision: vault ? vault.entriesRevision : 0
   readonly property int foldersRevision: vault ? vault.foldersRevision : 0
   readonly property var folderList: vault && vault.folders ? vault.folders : []
-  readonly property string pluginVersion: (manifest && manifest.version) ? String(manifest.version) : "0.6.1"
+  readonly property string pluginVersion: (manifest && manifest.version) ? String(manifest.version) : "0.6.2"
   property string cliDigest: ""
   readonly property string repoUrl: "https://github.com/imcmurray/omarchy-aegis"
   readonly property string issuesUrl: "https://github.com/imcmurray/omarchy-aegis/issues/new/choose"

@@ -132,6 +132,77 @@ def test_passfile_via_run() -> None:
             fail(f"passfile leaked: {leftover}")
 
 
+def test_timeout_kills_orphaned_descendant() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        pidfile = os.path.join(tmp, "orphan.pid")
+        fake = os.path.join(tmp, "fake-cli")
+        write(
+            fake,
+            "#!/usr/bin/python3\n"
+            "import os, signal, time\n"
+            "child = os.fork()\n"
+            "if child == 0:\n"
+            "    signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+            f"    open({pidfile!r}, 'w').write(str(os.getpid()))\n"
+            "    time.sleep(60)\n"
+            "    os._exit(0)\n"
+            "time.sleep(60)\n",
+            0o755,
+        )
+        paths = layout(tmp, fake)
+        t0 = time.monotonic()
+        got = run_helper(
+            paths,
+            ["run", "--timeout-ms", "400", "--max-bytes", "4096", "--"],
+            stdin=b"{}\n",
+            timeout=8,
+        )
+        elapsed = time.monotonic() - t0
+        if elapsed > 3:
+            fail(f"orphan timeout too slow: {elapsed:.2f}s")
+        if got.returncode == 0:
+            fail("leader-exit orphan should still time out")
+        deadline = time.monotonic() + 2
+        orphan = None
+        while time.monotonic() < deadline:
+            if os.path.isfile(pidfile):
+                orphan = int(open(pidfile).read().strip())
+                break
+            time.sleep(0.02)
+        if orphan is None:
+            fail("orphan never wrote pidfile")
+        still = True
+        deadline = time.monotonic() + 2
+        while time.monotonic() < deadline:
+            try:
+                os.kill(orphan, 0)
+            except ProcessLookupError:
+                still = False
+                break
+            time.sleep(0.05)
+        if still:
+            fail(f"SIGTERM-ignoring descendant {orphan} survived the timeout")
+
+
+def test_stdin_write_obeys_deadline() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        paths = layout(tmp, "/usr/bin/sleep")
+        t0 = time.monotonic()
+        got = run_helper(
+            paths,
+            ["run", "--timeout-ms", "400", "--max-bytes", "4096", "--", "8"],
+            stdin=(json.dumps({"rpc": "x" * (256 * 1024)}) + "\n").encode(),
+            timeout=8,
+        )
+        elapsed = time.monotonic() - t0
+        if got.returncode == 0:
+            fail("unread stdin should still time out")
+        if elapsed > 3:
+            fail(f"blocking stdin write escaped timeout: {elapsed:.2f}s")
+        if b"timed out" not in got.stderr:
+            fail(f"stdin timeout stderr {got.stderr!r}")
+
+
 def test_timeout_kills_group() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         paths = layout(tmp, "/usr/bin/sleep")
@@ -209,6 +280,10 @@ def test_source_invariants() -> None:
         fail("aegis-run still searches ~/.cargo/bin")
     if "PATH=" in src and '"PATH": "/usr/bin:/bin"' not in src:
         fail("closed env PATH missing")
+    if "proc.stdin.write" in src:
+        fail("synchronous stdin write still present")
+    if "PR_SET_CHILD_SUBREAPER" not in src:
+        fail("subreaper missing")
     if "bash -c" in qml or "command -v" in qml:
         fail("Service.qml still discovers CLI via bash/PATH")
     if "waitForEnd: true" in qml or "waitForEnd: true" in overlay:
@@ -241,6 +316,8 @@ def main() -> None:
     test_resolve_and_mismatch()
     test_passfile_via_run()
     test_timeout_kills_group()
+    test_timeout_kills_orphaned_descendant()
+    test_stdin_write_obeys_deadline()
     test_output_cap()
     test_symlink_xdg_rejected()
     print("aegis-run-test.py ok")

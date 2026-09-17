@@ -47,6 +47,7 @@ OPEN_DIR_NOFOLLOW = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
 OPEN_READ_NOFOLLOW = os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC
 OPEN_READ_INHERIT = os.O_RDONLY | os.O_NOFOLLOW
 PR_SET_PDEATHSIG = 1
+PR_SET_CHILD_SUBREAPER = 36
 class Reject(Exception):
     def __init__(self, msg: str, code: int = 1) -> None:
         super().__init__(msg)
@@ -280,6 +281,13 @@ def set_pdeathsig(sig: int = signal.SIGTERM) -> None:
         raise SystemExit(0)
 
 
+def become_subreaper() -> None:
+    libc = ctypes.CDLL(None, use_errno=True)
+    if libc.prctl(PR_SET_CHILD_SUBREAPER, 1, 0, 0, 0) != 0:
+        err = ctypes.get_errno()
+        fail(f"prctl PR_SET_CHILD_SUBREAPER: {os.strerror(err)}")
+
+
 def child_setup() -> None:
     libc = ctypes.CDLL(None, use_errno=True)
     libc.prctl(PR_SET_PDEATHSIG, signal.SIGTERM, 0, 0, 0)
@@ -376,24 +384,73 @@ def unlink_passfile(dir_fd: int, name: str) -> None:
     os.fsync(dir_fd)
 
 
-def kill_group(pid: int) -> None:
+def _signal_group(pgid: int, sig: int) -> bool:
     try:
-        os.killpg(pid, signal.SIGTERM)
+        os.killpg(pgid, sig)
+        return True
     except ProcessLookupError:
-        return
-    deadline = time.monotonic() + 0.5
-    while time.monotonic() < deadline:
+        return False
+
+
+def _reap_group(pgid: int) -> tuple[bool, int | None]:
+    """Reap every available child in pgid. Returns (group empty, leader wait status)."""
+    leader_status: int | None = None
+    while True:
         try:
-            waited, _ = os.waitpid(-pid, os.WNOHANG)
+            waited, status = os.waitpid(-pgid, os.WNOHANG)
         except ChildProcessError:
-            return
-        if waited == pid:
-            return
-        time.sleep(0.05)
-    try:
-        os.killpg(pid, signal.SIGKILL)
-    except ProcessLookupError:
-        return
+            return True, leader_status
+        if waited == 0:
+            return False, leader_status
+        if waited == pgid:
+            leader_status = status
+
+
+def _apply_wait_status(proc: subprocess.Popen, status: int) -> None:
+    if os.WIFEXITED(status):
+        proc.returncode = os.WEXITSTATUS(status)
+    elif os.WIFSIGNALED(status):
+        proc.returncode = -os.WTERMSIG(status)
+    else:
+        proc.returncode = 1
+
+
+def kill_group(pid: int) -> int | None:
+    """TERM the group, then KILL at the grace deadline even if the leader already died.
+
+    Reaps every child in the group (subreaper descendants included). Returns the
+    leader's wait status if this function reaped it, else None.
+    """
+    _signal_group(pid, signal.SIGTERM)
+    deadline = time.monotonic() + 0.5
+    leader_status: int | None = None
+    while time.monotonic() < deadline:
+        empty, status = _reap_group(pid)
+        if status is not None:
+            leader_status = status
+        if empty:
+            return leader_status
+        time.sleep(0.02)
+    _signal_group(pid, signal.SIGKILL)
+    kill_deadline = time.monotonic() + 0.5
+    while time.monotonic() < kill_deadline:
+        empty, status = _reap_group(pid)
+        if status is not None:
+            leader_status = status
+        if empty:
+            return leader_status
+        try:
+            os.killpg(pid, 0)
+        except ProcessLookupError:
+            empty, status = _reap_group(pid)
+            if status is not None:
+                leader_status = status
+            return leader_status
+        time.sleep(0.02)
+    empty, status = _reap_group(pid)
+    if status is not None:
+        leader_status = status
+    return leader_status
 
 
 def run_group(
@@ -406,6 +463,7 @@ def run_group(
     max_bytes: int,
     pass_fds: list[int],
 ) -> tuple[int, bytes, bytes]:
+    become_subreaper()
     try:
         proc = subprocess.Popen(
             argv,
@@ -432,15 +490,31 @@ def run_group(
         except OSError:
             pass
     assert proc.stdout is not None and proc.stderr is not None
+    stdin_fd: int | None = None
+    stdin_view: memoryview | None = None
+    stdin_off = 0
     if stdin_data is not None and proc.stdin is not None:
-        try:
-            proc.stdin.write(stdin_data)
-        except BrokenPipeError:
-            pass
-        try:
-            proc.stdin.close()
-        except BrokenPipeError:
-            pass
+        stdin_fd = proc.stdin.fileno()
+        os.set_blocking(stdin_fd, False)
+        stdin_view = memoryview(stdin_data)
+        if not stdin_data:
+            try:
+                proc.stdin.close()
+            except BrokenPipeError:
+                pass
+            stdin_fd = None
+    for pipe in (proc.stdout, proc.stderr):
+        os.set_blocking(pipe.fileno(), False)
+
+    def close_stdin() -> None:
+        nonlocal stdin_fd
+        if proc.stdin is not None:
+            try:
+                proc.stdin.close()
+            except (BrokenPipeError, OSError):
+                pass
+        stdin_fd = None
+
     out = bytearray()
     err = bytearray()
     streams: list[int] = [proc.stdout.fileno(), proc.stderr.fileno()]
@@ -448,17 +522,34 @@ def run_group(
     deadline = time.monotonic() + (timeout_ms / 1000.0)
     timed_out = False
     exceeded = False
-    while streams:
+    while streams or stdin_fd is not None:
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             timed_out = True
             break
-        ready, _, _ = select.select(streams, [], [], remaining)
-        if not ready:
+        writers = [stdin_fd] if stdin_fd is not None else []
+        ready_r, ready_w, _ = select.select(streams, writers, [], remaining)
+        if not ready_r and not ready_w:
             timed_out = True
             break
-        for fd in ready:
-            chunk = os.read(fd, 4096)
+        if stdin_fd is not None and stdin_fd in ready_w and stdin_view is not None:
+            chunk = stdin_view[stdin_off : stdin_off + 4096]
+            try:
+                n = os.write(stdin_fd, chunk)
+            except BlockingIOError:
+                n = 0
+            except BrokenPipeError:
+                close_stdin()
+                n = 0
+            else:
+                stdin_off += n
+                if stdin_off >= len(stdin_data or b""):
+                    close_stdin()
+        for fd in ready_r:
+            try:
+                chunk = os.read(fd, 4096)
+            except BlockingIOError:
+                continue
             if not chunk:
                 streams.remove(fd)
                 continue
@@ -467,14 +558,26 @@ def run_group(
             if len(out) > max_bytes or len(err) > max_bytes:
                 exceeded = True
                 streams = []
+                close_stdin()
                 break
+        if proc.poll() is not None and not streams:
+            close_stdin()
+            break
     if timed_out or exceeded:
-        kill_group(proc.pid)
+        close_stdin()
+        reaped = kill_group(proc.pid)
+        if reaped is not None:
+            _apply_wait_status(proc, reaped)
     try:
         proc.wait(timeout=2)
     except subprocess.TimeoutExpired:
-        kill_group(proc.pid)
-        proc.wait(timeout=2)
+        reaped = kill_group(proc.pid)
+        if reaped is not None:
+            _apply_wait_status(proc, reaped)
+        try:
+            proc.wait(timeout=2)
+        except subprocess.TimeoutExpired:
+            fail("aegis process group did not exit after SIGKILL", 124)
     if timed_out:
         fail(f"aegis timed out after {timeout_ms}ms", 124)
     if exceeded:
