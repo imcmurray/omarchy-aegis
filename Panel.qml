@@ -69,6 +69,7 @@ Panel {
     "Tab jumps to the next bar panel. Shift+Tab goes back.",
     "Ctrl+G generates a password while you’re editing an entry.",
     "Backup → Export writes the same .aegis file the web app uses.",
+    "Freenet link, sync, and delegate upgrade stay in the web app. This panel uses the local CLI.",
     "Search matches names, usernames, URLs, and tags.",
     "Ctrl+L locks the vault. Session lock and suspend do too.",
     "Page Up and Page Down jump eight rows at a time.",
@@ -121,7 +122,7 @@ Panel {
   readonly property int entriesRevision: vault ? vault.entriesRevision : 0
   readonly property int foldersRevision: vault ? vault.foldersRevision : 0
   readonly property var folderList: vault && vault.folders ? vault.folders : []
-  readonly property string pluginVersion: (manifest && manifest.version) ? String(manifest.version) : "0.6.2"
+  readonly property string pluginVersion: (manifest && manifest.version) ? String(manifest.version) : "0.6.3"
   property string cliDigest: ""
   readonly property string repoUrl: "https://github.com/imcmurray/omarchy-aegis"
   readonly property string issuesUrl: "https://github.com/imcmurray/omarchy-aegis/issues/new/choose"
@@ -130,9 +131,11 @@ Panel {
   readonly property string installSnippet: {
     var hash = root.cliDigest || "see cli.sha256"
     return (
-      "tag=v2.0.0-rc.1.1; base=https://github.com/imcmurray/Aegis/releases/download/$tag; " +
+      "tag=v2.0.1; base=https://github.com/imcmurray/Aegis/releases/download/$tag; " +
       "dir=${XDG_RUNTIME_DIR:?}/aegis-cli-$$; mkdir -p \"$dir\" && " +
+      "curl -fsSL -o \"$dir/SHA256SUMS\" \"$base/SHA256SUMS\" && " +
       "curl -fsSL -o \"$dir/aegis-x86_64-unknown-linux-gnu\" \"$base/aegis-x86_64-unknown-linux-gnu\" && " +
+      "(cd \"$dir\" && sha256sum -c SHA256SUMS --ignore-missing) && " +
       "echo " + hash + "  aegis-x86_64-unknown-linux-gnu | (cd \"$dir\" && sha256sum -c -) && " +
       "install -D -m 0755 \"$dir/aegis-x86_64-unknown-linux-gnu\" \"$HOME/.local/bin/aegis\" && " +
       "rm -rf \"$dir\" && \"$HOME/.local/bin/aegis\" --protocol-version"
@@ -1774,7 +1777,7 @@ Panel {
               width: parent.width
               textFormat: Text.PlainText
               wrapMode: Text.Wrap
-              text: "Aegis is a password manager that keeps crypto on your machine. The web app, this overlay, and the native CLI all speak the same vault protocol. Secrets are sealed with Argon2id and XChaCha20-Poly1305. This plugin is only a client: it never reimplements the vault."
+              text: "Aegis is a password manager that keeps crypto on your machine. The web app, this overlay, and the native CLI all speak vault protocol 1. Secrets are sealed with Argon2id and XChaCha20-Poly1305. This plugin is only a client: it never reimplements the vault. Freenet — link a device, sync, and delegate upgrade — stays in the web app. This overlay does not open a Freenet peer or load delegate WASM."
               color: root.foreground
               font.family: root.fontFamily
               font.pixelSize: Style.font.body

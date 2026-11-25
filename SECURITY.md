@@ -13,7 +13,8 @@ Do not put passphrases or vault exports in public issues.
 
 ## What this plugin does
 
-- Talks only to an attested local `aegis` binary whose SHA-256 matches `cli.sha256` (descriptor-bound `O_NOFOLLOW` open, not PATH)
+- Talks only to an attested local `aegis` binary whose SHA-256 matches `cli.sha256` (descriptor-bound `O_NOFOLLOW` open, not PATH). The pin is the Aegis v2.0.1 linux-x86_64 release, which includes the v2.0.0-rc.2 security dependency refresh. Protocol stays `1`
+- Does not open a Freenet peer, load delegate or contract WASM, or handle link codes. Link, sync, and delegate upgrade stay in the Aegis web app. Additive fields such as `remote_change` are dropped before they reach the panel model
 - Passes passphrases through mode-0600 files created in a held `$XDG_RUNTIME_DIR/aegis-omarchy` directory fd and consumed as `/proc/self/fd/N` (never argv or env)
 - Runs the CLI in a closed environment with absolute helpers, a deadline, an output cap, and process-group TERM/KILL/reap
 - Copies secrets with `aegis copy`, not `wl-copy` from QML (the overlay install snippet is the exception, via `/usr/bin/wl-copy`)

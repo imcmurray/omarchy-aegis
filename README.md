@@ -12,21 +12,25 @@ Omarchy overlay  →  aegis  →  aegis agent  →  ~/.local/share/aegis/secrets
 
 Unlock once. Search and copy hit the running agent. Argon2id (≥ 64 MiB) is not paid per keystroke.
 
-**Beta v0.6.0.** Built for Omarchy Quattro. Feedback welcome — **About** (or F1) in the overlay, or [open an issue](https://github.com/imcmurray/omarchy-aegis/issues/new/choose).
+**Beta v0.6.3.** Built for Omarchy Quattro. Feedback welcome — **About** (or F1) in the overlay, or [open an issue](https://github.com/imcmurray/omarchy-aegis/issues/new/choose).
 
 ## Install
 
-Requires the **attested** [`aegis`](https://github.com/imcmurray/Aegis) linux-x86_64 CLI from the [v2.0.0-rc.1.1](https://github.com/imcmurray/Aegis/releases/tag/v2.0.0-rc.1.1) GitHub Release. The plugin opens candidate paths with `O_NOFOLLOW`, hashes the descriptor, and refuses anything whose SHA-256 is not in `cli.sha256`. Protocol version is a sanity check, not trust.
+Requires the **attested** [`aegis`](https://github.com/imcmurray/Aegis) linux-x86_64 CLI from the [v2.0.1](https://github.com/imcmurray/Aegis/releases/tag/v2.0.1) GitHub Release. That build includes the v2.0.0-rc.2 security dependency refresh. Crypto suites and CLI protocol `1` are unchanged. The plugin opens candidate paths with `O_NOFOLLOW`, hashes the descriptor, and refuses anything whose SHA-256 is not in `cli.sha256`. Protocol version is a sanity check, not trust.
+
+Freenet link-a-device, sync, and delegate upgrade stay in the [web app](https://imcmurray.github.io/Aegis/). This overlay does not open a Freenet peer or load delegate WASM. It is the file-backed CLI client only. Additive v2.0.1 fields such as `remote_change` are ignored, so a Freenet-era response cannot put secrets into the panel model.
 
 **No sudo or pkexec is required.** This plugin does not install packages or edit Hyprland/Omarchy config unless you add the optional keybind below.
 
 ```bash
-tag=v2.0.0-rc.1.1
+tag=v2.0.1
 base=https://github.com/imcmurray/Aegis/releases/download/$tag
 dir="${XDG_RUNTIME_DIR:?}/aegis-cli-$$"
 mkdir -p "$dir"
+curl -fsSL -o "$dir/SHA256SUMS" "$base/SHA256SUMS"
 curl -fsSL -o "$dir/aegis-x86_64-unknown-linux-gnu" "$base/aegis-x86_64-unknown-linux-gnu"
-echo "05d6b776bac89cb9301231bcc51b579cc616811d876a32771861d06cb543b042  aegis-x86_64-unknown-linux-gnu" | (cd "$dir" && sha256sum -c -)
+(cd "$dir" && sha256sum -c SHA256SUMS --ignore-missing)
+echo "8faae76f0251490ccfbfad8d339454dc70471a38ca484afde38fb203079612d2  aegis-x86_64-unknown-linux-gnu" | (cd "$dir" && sha256sum -c -)
 install -D -m 0755 "$dir/aegis-x86_64-unknown-linux-gnu" "$HOME/.local/bin/aegis"
 rm -rf "$dir"
 "$HOME/.local/bin/aegis" --protocol-version
@@ -60,7 +64,7 @@ The plugin looks for an attested `aegis` at `/usr/bin/aegis`, `/usr/local/bin/ae
 - Row **Edit** on hover or keyboard selection; Ctrl+N for a new entry
 - Categories (Aegis folders), TOTP, notes, generated passwords
 - Session lock, suspend, and logout lock the vault
-- **Backup** exports/imports the same `.aegis` files as the [web app](https://imcmurray.github.io/Aegis/). Import into a **new** vault is the default. Import **over** an existing vault needs **Replace existing vault** (`aegis import --replace`, CLI `v2.0.0-rc.1.1` / `cd99293`). That is ordinary backup restore: **new `vault_id`**, new live passphrase (must differ from the backup passphrase). It is not Recovery Kit identity preservation.
+- **Backup** exports/imports the same `.aegis` files as the [web app](https://imcmurray.github.io/Aegis/). Import into a **new** vault is the default. Import **over** an existing vault needs **Replace existing vault** (`aegis import --replace`, CLI `v2.0.1`). That is ordinary backup restore: **new `vault_id`**, new live passphrase (must differ from the backup passphrase). It is not Recovery Kit identity preservation, and it is not the Freenet link-a-device path.
 - **About** explains Aegis, post-quantum hybrid crypto, and where to send feedback
 
 ![About](docs/screenshots/about.png)
@@ -103,7 +107,7 @@ aegis agent stop
 
 Portable copy of a vault is **Backup → Export** (a `.aegis` file). `~/.local/share/aegis` is the sealed local store, not a file you copy to another PC.
 
-CLI equivalent of the overlay’s Replace toggle (`aegis` `v2.0.0-rc.1.1`):
+CLI equivalent of the overlay’s Replace toggle (`aegis` `v2.0.1`):
 
 ```bash
 aegis import --replace \

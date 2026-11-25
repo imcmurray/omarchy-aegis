@@ -32,7 +32,7 @@ function protocolOk(version) {
 }
 
 function missingCliMessage() {
-  return "No attested aegis CLI. Install the linux-x86_64 GitHub Release artifact for Aegis v2.0.0-rc.1.1 (see Copy install) whose SHA-256 is in cli.sha256."
+  return "No attested aegis CLI. Install the linux-x86_64 GitHub Release artifact for Aegis v2.0.1 (see Copy install) whose SHA-256 is in cli.sha256."
 }
 
 function protocolMismatchMessage(version) {

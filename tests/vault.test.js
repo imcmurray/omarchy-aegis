@@ -157,5 +157,39 @@ assert.notEqual(
 
 assert.match(vault.copyToast("password"), /Copied password/)
 assert.match(vault.missingCliMessage(), /attested aegis CLI/)
+assert.match(vault.missingCliMessage(), /v2\.0\.1/)
+
+const withRemote = vault.asEntry({
+  type: "entry",
+  entry: {
+    id: "aabbccdd",
+    name: "Mail",
+    username: "ada",
+    password: "secret",
+    urls: [],
+    tags: [],
+    custom_fields: []
+  },
+  remote_change: {
+    entry_id: "aabbccdd",
+    kind: "modified",
+    changed_at: 9,
+    fields: [{ field: "password", new: "should-not-surface" }]
+  }
+})
+assert.equal(withRemote.password, "secret")
+assert.equal("remote_change" in withRemote, false)
+
+const flatRemote = vault.flattenEntry({
+  id: "aa",
+  name: "n",
+  username: "u",
+  urls: [],
+  tags: [],
+  has_password: true,
+  remote_change: { kind: "added", changed_at: 1 }
+})
+assert.equal("remote_change" in flatRemote, false)
+assert.equal("password" in flatRemote, false)
 
 console.log("vault.test.js ok")

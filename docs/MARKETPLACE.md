@@ -1,8 +1,8 @@
-# Marketplace listing (not submitted yet)
+# Marketplace listing
 
-When we are ready, submit via the [Omarchy plugin marketplace](https://plugins.omarchy.org/publish.html) using [SUBMISSION.md](https://github.com/omacom/omarchy-plugin-marketplace/blob/main/SUBMISSION.md).
+Listed as `ianm.aegis` (marketplace issue [6281](https://github.com/omacom/omarchy-plugin-marketplace/issues/6281)).
 
-Do **not** open the issue until the owner says to submit.
+Do **not** open a second `[Plugin]:` issue. A newer commit is published with the [verify form](https://github.com/omacom/omarchy-plugin-marketplace/issues/new?template=verify-plugin.yml): action **Verify and publish a newer upstream commit**, plugin id `ianm.aegis`, repository `https://github.com/imcmurray/omarchy-aegis`, and the full 40-character HEAD SHA.
 
 ## Listing metadata
 
@@ -33,7 +33,7 @@ _No response_
 
 ### Maintainer notes
 
-Beta v0.6.0 overlay client of the native aegis CLI (password manager). Plugin id `ianm.aegis`. Requires the attested linux-x86_64 `aegis` GitHub Release artifact for Aegis v2.0.0-rc.1.1; runtime trust is the SHA-256 in `cli.sha256` of an O_NOFOLLOW fd (not PATH, not protocol version). Helpers are absolute and run in `env -i`. Passphrase files are descriptor-created in a held 0700 runtime dir and passed as `/proc/self/fd/N`. CLI processes are process-grouped with a deadline and output cap. No sudo or pkexec. Optional Hyprland bind is documented only — not installed.
+Beta v0.6.3 overlay client of the native aegis CLI (password manager). Plugin id `ianm.aegis`. Requires the attested linux-x86_64 `aegis` GitHub Release artifact for Aegis v2.0.1 (security dependency refresh from v2.0.0-rc.2; protocol 1 unchanged). Runtime trust is the SHA-256 in `cli.sha256` of an O_NOFOLLOW fd (not PATH, not protocol version). Install checks the release SHA256SUMS and that pin. Freenet link, sync, and delegate upgrade stay in the web app; this plugin does not open a peer or load WASM. Helpers are absolute and run in `env -i`. Passphrase files are descriptor-created in a held 0700 runtime dir and passed as `/proc/self/fd/N`. CLI processes are process-grouped with a deadline and output cap. No sudo or pkexec. Optional Hyprland bind is documented only — not installed.
 
 ### Submission checklist
 
