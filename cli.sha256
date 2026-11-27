@@ -1,9 +1,11 @@
-# Attested linux-x86_64 aegis CLI (Aegis v2.0.1).
+# Attested linux-x86_64 aegis CLI (Aegis v2.0.2).
 # GitHub Actions --locked build, rustc 1.98.1, provenance attested.
+# Every action in cli-release.yml is pinned to a full commit SHA.
+# The CLI crate did not change, so this digest matches the v2.0.1 artifact.
 # Includes the v2.0.0-rc.2 security dependency refresh (ctutils, tokio).
 # Crypto suites, wire formats, and CLI protocol 1 are unchanged.
-# Workflow: https://github.com/imcmurray/Aegis/actions/runs/45344171640
-# Release: https://github.com/imcmurray/Aegis/releases/tag/v2.0.1
+# Workflow: https://github.com/imcmurray/Aegis/actions/runs/46080918110
+# Release: https://github.com/imcmurray/Aegis/releases/tag/v2.0.2
 # One SHA-256 hex digest per line. The plugin accepts a candidate only
 # when the O_NOFOLLOW fd hashes to one of these values.
 8faae76f0251490ccfbfad8d339454dc70471a38ca484afde38fb203079612d2  aegis-x86_64-unknown-linux-gnu

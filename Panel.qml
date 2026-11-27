@@ -122,7 +122,7 @@ Panel {
   readonly property int entriesRevision: vault ? vault.entriesRevision : 0
   readonly property int foldersRevision: vault ? vault.foldersRevision : 0
   readonly property var folderList: vault && vault.folders ? vault.folders : []
-  readonly property string pluginVersion: (manifest && manifest.version) ? String(manifest.version) : "0.6.3"
+  readonly property string pluginVersion: (manifest && manifest.version) ? String(manifest.version) : "0.6.4"
   property string cliDigest: ""
   readonly property string repoUrl: "https://github.com/imcmurray/omarchy-aegis"
   readonly property string issuesUrl: "https://github.com/imcmurray/omarchy-aegis/issues/new/choose"
@@ -131,7 +131,7 @@ Panel {
   readonly property string installSnippet: {
     var hash = root.cliDigest || "see cli.sha256"
     return (
-      "tag=v2.0.1; base=https://github.com/imcmurray/Aegis/releases/download/$tag; " +
+      "tag=v2.0.2; base=https://github.com/imcmurray/Aegis/releases/download/$tag; " +
       "dir=${XDG_RUNTIME_DIR:?}/aegis-cli-$$; mkdir -p \"$dir\" && " +
       "curl -fsSL -o \"$dir/SHA256SUMS\" \"$base/SHA256SUMS\" && " +
       "curl -fsSL -o \"$dir/aegis-x86_64-unknown-linux-gnu\" \"$base/aegis-x86_64-unknown-linux-gnu\" && " +

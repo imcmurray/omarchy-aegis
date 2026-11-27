@@ -12,18 +12,18 @@ Omarchy overlay  →  aegis  →  aegis agent  →  ~/.local/share/aegis/secrets
 
 Unlock once. Search and copy hit the running agent. Argon2id (≥ 64 MiB) is not paid per keystroke.
 
-**Beta v0.6.3.** Built for Omarchy Quattro. Feedback welcome — **About** (or F1) in the overlay, or [open an issue](https://github.com/imcmurray/omarchy-aegis/issues/new/choose).
+**Beta v0.6.4.** Built for Omarchy Quattro. Feedback welcome — **About** (or F1) in the overlay, or [open an issue](https://github.com/imcmurray/omarchy-aegis/issues/new/choose).
 
 ## Install
 
-Requires the **attested** [`aegis`](https://github.com/imcmurray/Aegis) linux-x86_64 CLI from the [v2.0.1](https://github.com/imcmurray/Aegis/releases/tag/v2.0.1) GitHub Release. That build includes the v2.0.0-rc.2 security dependency refresh. Crypto suites and CLI protocol `1` are unchanged. The plugin opens candidate paths with `O_NOFOLLOW`, hashes the descriptor, and refuses anything whose SHA-256 is not in `cli.sha256`. Protocol version is a sanity check, not trust.
+Requires the **attested** [`aegis`](https://github.com/imcmurray/Aegis) linux-x86_64 CLI from the [v2.0.2](https://github.com/imcmurray/Aegis/releases/tag/v2.0.2) GitHub Release. That workflow pins every action to a full commit SHA. The CLI crate did not change, so the binary digest matches the v2.0.1 artifact, which includes the v2.0.0-rc.2 security dependency refresh. Crypto suites and CLI protocol `1` are unchanged. The plugin opens candidate paths with `O_NOFOLLOW`, hashes the descriptor, and refuses anything whose SHA-256 is not in `cli.sha256`. Protocol version is a sanity check, not trust.
 
 Freenet link-a-device, sync, and delegate upgrade stay in the [web app](https://imcmurray.github.io/Aegis/). This overlay does not open a Freenet peer or load delegate WASM. It is the file-backed CLI client only. Additive v2.0.1 fields such as `remote_change` are ignored, so a Freenet-era response cannot put secrets into the panel model.
 
 **No sudo or pkexec is required.** This plugin does not install packages or edit Hyprland/Omarchy config unless you add the optional keybind below.
 
 ```bash
-tag=v2.0.1
+tag=v2.0.2
 base=https://github.com/imcmurray/Aegis/releases/download/$tag
 dir="${XDG_RUNTIME_DIR:?}/aegis-cli-$$"
 mkdir -p "$dir"
@@ -64,7 +64,7 @@ The plugin looks for an attested `aegis` at `/usr/bin/aegis`, `/usr/local/bin/ae
 - Row **Edit** on hover or keyboard selection; Ctrl+N for a new entry
 - Categories (Aegis folders), TOTP, notes, generated passwords
 - Session lock, suspend, and logout lock the vault
-- **Backup** exports/imports the same `.aegis` files as the [web app](https://imcmurray.github.io/Aegis/). Import into a **new** vault is the default. Import **over** an existing vault needs **Replace existing vault** (`aegis import --replace`, CLI `v2.0.1`). That is ordinary backup restore: **new `vault_id`**, new live passphrase (must differ from the backup passphrase). It is not Recovery Kit identity preservation, and it is not the Freenet link-a-device path.
+- **Backup** exports/imports the same `.aegis` files as the [web app](https://imcmurray.github.io/Aegis/). Import into a **new** vault is the default. Import **over** an existing vault needs **Replace existing vault** (`aegis import --replace`, CLI `v2.0.2`). That is ordinary backup restore: **new `vault_id`**, new live passphrase (must differ from the backup passphrase). It is not Recovery Kit identity preservation, and it is not the Freenet link-a-device path.
 - **About** explains Aegis, post-quantum hybrid crypto, and where to send feedback
 
 ![About](docs/screenshots/about.png)
@@ -107,7 +107,7 @@ aegis agent stop
 
 Portable copy of a vault is **Backup → Export** (a `.aegis` file). `~/.local/share/aegis` is the sealed local store, not a file you copy to another PC.
 
-CLI equivalent of the overlay’s Replace toggle (`aegis` `v2.0.1`):
+CLI equivalent of the overlay’s Replace toggle (`aegis` `v2.0.2`):
 
 ```bash
 aegis import --replace \

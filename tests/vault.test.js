@@ -157,7 +157,7 @@ assert.notEqual(
 
 assert.match(vault.copyToast("password"), /Copied password/)
 assert.match(vault.missingCliMessage(), /attested aegis CLI/)
-assert.match(vault.missingCliMessage(), /v2\.0\.1/)
+assert.match(vault.missingCliMessage(), /v2\.0\.2/)
 
 const withRemote = vault.asEntry({
   type: "entry",
